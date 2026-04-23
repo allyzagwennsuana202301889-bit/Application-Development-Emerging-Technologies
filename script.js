@@ -78,6 +78,14 @@ function quiz(){
    window.location.href = "flashcards.html";
 }
 
+function addnote(){
+   window.location.href = "addnotes.html";
+}
+
+function goBacknote(){
+  window.location.href = "notes.html";
+}
+
 //Picture input//
 const input = document.getElementById("imageInput");
 const preview = document.getElementById("preview");

@@ -12,8 +12,8 @@
   <!-- NAV -->
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-    <input type="text" id="searchInput" placeholder="Search subject">
-    <img src="bell.png" class="bell">
+    <img src="bell.png" class="bells">
+    <button onclick="goBacknote()" class="back-btn"><img src="back.png" ></button>
   </nav>
 
   <!-- SIDEBAR -->
@@ -32,7 +32,7 @@
     <h3>insert username</h3>
     <p>username@gmail.com</p>
 
-    <a href="#">Home</a>
+    <a href="homepage.html">Home</a>
     <a href="notes.html">Notes</a>
     <a href="#">Analytics</a>
     <a href="#">Leaderboard</a>
@@ -46,9 +46,9 @@
    <div class="content"></div>
 
   <!-- BOTTOM BAR -->
- <div class="bottom-file-section">
+ <div class="bottom-add-section">
   <div class="item">
-    <img src="upload.png">
+    <button onclick="upload()"><img src="upload.png"></button>
     <p>Upload</p>
   </div>
 
