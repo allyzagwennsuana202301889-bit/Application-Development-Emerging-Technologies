@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lectures</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <span class="hamburger">&#9776;</span>
+    <input type="text" id="searchInput" placeholder="Search subject">
+    <img src="bell.png" class="bell">
+  </nav>
+
+  <!-- SIDEBAR -->
+  <div class="nav-links">
+    <div class="top-icons">
+      <img src="FAQIcon.png" class="help">
+      <img src="back.png" class="back">
+    </div>
+    
+    <label for="imageInput">
+      <img id="preview" src="acc.png" alt="Upload Image">
+    </label>
+
+   <input type="file" id="imageInput" accept="image/*" hidden>
+
+    <h3>insert username</h3>
+    <p>username@gmail.com</p>
+
+    <a href="#">Home</a>
+    <a href="notes.html">Notes</a>
+    <a href="#">Analytics</a>
+    <a href="#">Leaderboard</a>
+    <a href="settings.html">Settings</a>
+    <a href="index.html">Log out</a>
+  </div>
+
+  <!-- OVERLAY -->
+  <div class="overlay"></div>
+
+  <!-- CONTENT (for future cards) -->
+  <div class="content"></div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom">
+    <div class="file-section">
+      <button onclick="upload()"><img src="uploaded.png"></button>
+      <p>Uploads</p>
+    </div>
+
+    <button onclick="study()">Add Subject(s)</button>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
