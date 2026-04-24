@@ -14,10 +14,11 @@
     <h1>The Ins</h1>
     <p class="sub">"Knowledge that connects"</p>
 
-    <input type="email" placeholder="email">
-    <input type="password" placeholder="password">
-
-    <button onclick="logs()">Login</button>
+<form action="login.php" method="POST">
+  <input type="email" name="email" placeholder="email" required>
+  <input type="password" name="password" placeholder="password" required>
+  <button type="submit">Login</button>
+</form>
   </div>
 </div>
 

@@ -1,0 +1,202 @@
+if (!localStorage.getItem("students")) {
+  localStorage.setItem("students", JSON.stringify([]));
+  localStorage.setItem("subjects", JSON.stringify([]));
+  localStorage.setItem("notes", JSON.stringify([]));
+  localStorage.setItem("analytics", JSON.stringify([]));
+  localStorage.setItem("notifications", JSON.stringify([]));
+}
+
+function logs() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailPattern.test(email)) {
+    alert("Enter a valid email");
+    return false;
+  }
+
+  if (password.length < 4) {
+    alert("Password must be at least 4 characters");
+    return false;
+  }
+
+  // allow login
+  window.location.href = "homepage.html";
+  return false;
+}
+
+function createStudent(name, email) {
+  let students = JSON.parse(localStorage.getItem("students"));
+
+  const newStudent = {
+    student_id: Date.now(),
+    name,
+    email,
+    pfp: "acc.png"
+  };
+
+  students.push(newStudent);
+  localStorage.setItem("students", JSON.stringify(students));
+
+  return newStudent;
+}
+
+function addSubject(title) {
+  let subjects = JSON.parse(localStorage.getItem("subjects"));
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  subjects.push({
+    subject_id: Date.now(),
+    student_id: currentUser.student_id,
+    title
+  });
+
+  localStorage.setItem("subjects", JSON.stringify(subjects));
+}
+
+function addNote(content, subject_id) {
+  let notes = JSON.parse(localStorage.getItem("notes"));
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  notes.push({
+    note_id: Date.now(),
+    student_id: currentUser.student_id,
+    subject_id,
+    content,
+    date_uploaded: new Date()
+  });
+
+  localStorage.setItem("notes", JSON.stringify(notes));
+}
+
+function saveProgress(value) {
+  let analytics = JSON.parse(localStorage.getItem("analytics"));
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  const existing = analytics.find(a => a.student_id === currentUser.student_id);
+
+  if (existing) {
+    existing.progress = value;
+  } else {
+    analytics.push({
+      analytics_id: Date.now(),
+      student_id: currentUser.student_id,
+      progress: value
+    });
+  }
+
+  localStorage.setItem("analytics", JSON.stringify(analytics));
+}
+
+
+function addNotification(message) {
+  let notifications = JSON.parse(localStorage.getItem("notifications"));
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  notifications.push({
+    notification_id: Date.now(),
+    student_id: currentUser.student_id,
+    message,
+    status: "unread",
+    date_sent: new Date()
+  });
+
+  localStorage.setItem("notifications", JSON.stringify(notifications));
+}
+
+
+function getMySubjects() {
+  const subjects = JSON.parse(localStorage.getItem("subjects"));
+  const user = JSON.parse(localStorage.getItem("currentUser"));
+
+  return subjects.filter(s => s.student_id === user.student_id);
+}
+
+function getNotesBySubject(subject_id) {
+  const notes = JSON.parse(localStorage.getItem("notes"));
+
+  return notes.filter(n => n.subject_id === subject_id);
+}
+
+function renderSubjects() {
+  const container = document.getElementById("subjectsContainer");
+  const subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+  const user = JSON.parse(localStorage.getItem("currentUser"));
+
+  // filter only current user's subjects
+  const mySubjects = subjects.filter(
+    s => s.student_id === user.student_id
+  );
+
+  container.innerHTML = "";
+
+  mySubjects.forEach(subject => {
+    const card = document.createElement("div");
+    card.className = "subject-card";
+
+    card.innerHTML = `
+      <div class="subject-title">${subject.title}</div>
+      <div class="subject-id">ID: ${subject.subject_id}</div>
+    `;
+
+    // click → go to notes page
+    card.onclick = () => {
+      localStorage.setItem("selectedSubject", subject.subject_id);
+      window.location.href = "notes.html";
+    };
+
+    container.appendChild(card);
+  });
+}
+
+renderSubjects();
+
+function addSubject(title) {
+  let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+  const user = JSON.parse(localStorage.getItem("currentUser"));
+
+  subjects.push({
+    subject_id: Date.now(),
+    student_id: user.student_id,
+    title: title
+  });
+
+  localStorage.setItem("subjects", JSON.stringify(subjects));
+  renderSubjects(); // refresh UI
+}
+
+.subjects-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 15px;
+}
+
+.subject-card {
+  background: white;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.subject-card:hover {
+  transform: translateY(-3px);
+}
+
+.subject-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.subject-id {
+  font-size: 12px;
+  color: gray;
+  margin-top: 5px;
+}
+
+

@@ -1,3 +1,5 @@
+
+
 // STATE
 let isMenuOpen = false;
 let activeLink = null;
@@ -60,14 +62,11 @@ function study() {
 }
 
 function goBack() {
-  window.location.href = "homepage.html";
+  window.location.href = "homepage.php";
 }
 
 function cardBack() {
-  window.location.href = "lecture.html";
-}
-function logs() {
-  window.location.href = "homepage.html";
+  window.history.back();
 }
 
 function upload() {
@@ -79,11 +78,19 @@ function quiz(){
 }
 
 function addnote(){
-   window.location.href = "addnotes.html";
+   window.location.href = "addsubject.php";
 }
 
-function goBacknote(){
-  window.location.href = "notes.html";
+function goBack() {
+  window.history.back();
+}
+
+function goToSubject(id) {
+  window.location.href = "subject.php?id=" + id;
+}
+
+function openFolder(id) {
+  window.location.href = "notes.php?folder_id=" + id;
 }
 
 //Picture input//

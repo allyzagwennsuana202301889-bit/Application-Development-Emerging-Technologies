@@ -1,3 +1,8 @@
+<?php
+session_start();
+include 'database.php';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,7 +18,8 @@
   <!-- NAV -->
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-    <img src="bell.png" class="bell">
+    <img src="bell.png" class="bells">
+    <button class="back-btn" button onclick="goBack()"><img src="back.png" ></button> 
   </nav>
 
   <!-- SIDEBAR -->
@@ -29,28 +35,66 @@
 
    <input type="file" id="imageInput" accept="image/*" hidden>
 
-    <h3>insert username</h3>
-    <p>username@gmail.com</p>
+    <h3><?php echo $_SESSION['name']; ?></h3>
+    <p><?php echo $_SESSION['email']; ?></p>
 
-    <a href="homepage.html">Home</a>
+    <a href="homepage.php">Home</a>
     <a href="#">Notes</a>
     <a href="#">Analytics</a>
     <a href="#">Leaderboard</a>
     <a href="settings.html">Settings</a>
-    <a href="index.html">Log out</a>
+    <a href="index.php">Log out</a>
   </div>
 
   <!-- OVERLAY -->
   <div class="overlay"></div>
 
-  <!-- CONTENT (for future cards) -->
-  <div class="content"></div>
+  <div class="folders">
+<?php
+$student_id = $_SESSION['student_id'];
+
+$sql = "SELECT * FROM folders WHERE student_id='$student_id'";
+$result = $conn->query($sql);
+
+while ($row = $result->fetch_assoc()) {
+  echo "
+    <div class='folder' onclick='openFolder(".$row['folder_id'].")'>
+      <img src='folder.png'>
+      <p>{$row['folder_name']}</p>
+    </div>
+  ";
+}
+?>
+</div>
+
+<?php
+$folder_id = $_GET['folder_id'] ?? null;
+
+if ($folder_id) {
+  $sql = "SELECT * FROM notes 
+          WHERE student_id='$student_id' 
+          AND folder_id='$folder_id'";
+} else {
+  $sql = "SELECT * FROM notes 
+          WHERE student_id='$student_id'";
+}
+
+$result = $conn->query($sql);
+
+while ($row = $result->fetch_assoc()) {
+  echo "
+    <div class='note-card'>
+      {$row['content']}
+    </div>
+  ";
+}
+?>
 
   <!-- BOTTOM BAR -->
   <div class="bottom-notes">
   <div class="item">
     <button onclick="addnote()"><img src="addnote.png"></button>
-    <p>Add Note</p>
+    <p>Add Subject</p>
   </div>
 
   <div class="item">
@@ -59,8 +103,8 @@
   </div>
 
   <div class="item">
-   <button onclick="goBack()"><img src="back.png"></button> 
-    <p>Back</p>
+   <img src="notes.png">
+    <p>Add notes</p>
   </div>
 
 </div>
