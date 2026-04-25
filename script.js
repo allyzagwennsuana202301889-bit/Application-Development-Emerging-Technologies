@@ -1,68 +1,112 @@
+// WAIT until DOM is fully loaded
+document.addEventListener("DOMContentLoaded", () => {
 
+  // STATE
+  let isMenuOpen = false;
+  let activeLink = null;
 
-// STATE
-let isMenuOpen = false;
-let activeLink = null;
+  // ELEMENTS
+  const hamburger = document.querySelector('.hamburger');
+  const navLinks = document.querySelector('.nav-links');
+  const overlay = document.querySelector('.overlay');
+  const backBtn = document.querySelector('.back');
+  const input = document.getElementById("imageInput");
+  const preview = document.getElementById("preview");
+  const search = document.getElementById("search");
 
-// ELEMENTS
-const hamburger = document.querySelector('.hamburger');
-const navLinks = document.querySelector('.nav-links');
-const overlay = document.querySelector('.overlay');
-const backBtn = document.querySelector('.back');
+  // Notification (safe)
+  const notification = document.createElement('div');
+  notification.className = 'notification';
+  document.body.appendChild(notification);
 
-
-// Notification element
-const notification = document.createElement('div');
-notification.className = 'notification';
-document.body.appendChild(notification);
-
-// FUNCTIONS
-function openMenu() {
-  navLinks.classList.add('active');
-  overlay.classList.add('active');
-
-  // make overlay visible but NOT clickable
-  overlay.style.pointerEvents = 'none';
-
-  isMenuOpen = true;
-}
-
-function closeMenu() {
-  navLinks.classList.remove('active');
-  overlay.classList.remove('active');
-  isMenuOpen = false;
-}
-
-// TOGGLE MENU
-hamburger.addEventListener('click', () => {
-  isMenuOpen ? closeMenu() : openMenu();
-});
-
-// BACK BUTTON (closes menu)
-backBtn.addEventListener('click', closeMenu);
-
-// HANDLE LINK CLICKS
-document.querySelectorAll('.nav-links a').forEach(link => {
-  link.addEventListener('click', (e) => {
-
-    if (activeLink) {
-      activeLink.classList.remove('active');
+  // MENU FUNCTIONS
+  function openMenu() {
+    if (navLinks) navLinks.classList.add('active');
+    if (overlay) {
+      overlay.classList.add('active');
+      overlay.style.pointerEvents = 'none';
     }
+    isMenuOpen = true;
+  }
 
-    link.classList.add('active');
-    activeLink = link;
+  function closeMenu() {
+    if (navLinks) navLinks.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+    isMenuOpen = false;
+  }
 
-    closeMenu();
+  // TOGGLE MENU
+  if (hamburger) {
+    hamburger.addEventListener('click', () => {
+      isMenuOpen ? closeMenu() : openMenu();
+    });
+  }
+
+  // BACK BUTTON
+  if (backBtn) {
+    backBtn.addEventListener('click', closeMenu);
+  }
+
+  // NAV LINKS
+  document.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', () => {
+      if (activeLink) activeLink.classList.remove('active');
+      link.classList.add('active');
+      activeLink = link;
+      closeMenu();
+    });
   });
-});
 
+  // IMAGE UPLOAD
+  if (input && preview) {
+    input.addEventListener("change", function () {
+      const file = this.files[0];
+
+      if (file) {
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          const base64 = e.target.result;
+          preview.src = base64;
+          localStorage.setItem("profileImage", base64);
+        };
+
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // LOAD SAVED IMAGE
+  const savedImage = localStorage.getItem("profileImage");
+  if (savedImage && preview) {
+    preview.src = savedImage;
+  }
+
+  // SEARCH FILTER (MODAL)
+  if (search) {
+    search.addEventListener("keyup", function () {
+      let value = this.value.toLowerCase();
+      let items = document.querySelectorAll(".subject-item");
+
+      items.forEach(item => {
+        item.style.display = item.innerText.toLowerCase().includes(value)
+          ? "block"
+          : "none";
+      });
+    });
+  }
+
+}); // END DOMContentLoaded
+
+
+// GLOBAL FUNCTIONS (for HTML onclick)
 
 function study() {
   window.location.href = "lecture.html";
 }
 
 function goBack() {
-  window.location.href = "homepage.php";
+  window.history.back();
 }
 
 function cardBack() {
@@ -70,19 +114,15 @@ function cardBack() {
 }
 
 function upload() {
-  window.location.href = "Uploaded notes.html";
+  window.location.href = "Uploaded notes.php";
 }
 
-function quiz(){
-   window.location.href = "flashcards.html";
+function quiz() {
+  window.location.href = "flashcards.html";
 }
 
-function addnote(){
-   window.location.href = "addsubject.php";
-}
-
-function goBack() {
-  window.history.back();
+function addnote() {
+  window.location.href = "addsubject.php";
 }
 
 function goToSubject(id) {
@@ -93,34 +133,70 @@ function openFolder(id) {
   window.location.href = "notes.php?folder_id=" + id;
 }
 
-//Picture input//
-const input = document.getElementById("imageInput");
-const preview = document.getElementById("preview");
+// MODAL CONTROLS (must be global)
+function openModal() {
+  const modal = document.getElementById("modal");
+  if (modal) modal.style.display = "flex";
+}
 
-input.addEventListener("change", function () {
-  const file = this.files[0];
+function closeModal() {
+  const modal = document.getElementById("modal");
+  if (modal) modal.style.display = "none";
+}
 
-  if (file) {
-    const reader = new FileReader();
 
-    reader.onload = function (e) {
-      const base64 = e.target.result;
+function readNote(id) {
+  window.location.href = "viewnote.php?note_id=" + id;
+}
 
-      preview.src = base64;
+function deleteNote(id) {
+  if (!confirm("Delete this note?")) return;
 
-      // SAVE to localStorage
-      localStorage.setItem("profileImage", base64);
-    };
+  fetch("deletenote.php", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: "note_id=" + id
+  })
+  .then(res => res.text())
+  .then(data => {
+    console.log("Server:", data);
 
-    reader.readAsDataURL(file);
-  }
-});
+    if (data === "deleted") {
+      location.reload();
+    } else {
+      alert("Delete failed: " + data);
+    }
+  })
+  .catch(err => console.error(err));
+}
 
-window.addEventListener("DOMContentLoaded", () => {
-  const savedImage = localStorage.getItem("profileImage");
+function togglePublish(id, currentType) {
+  const newType = currentType === "subject" ? "subject_draft" : "subject";
 
-  if (savedImage) {
-    document.getElementById("preview").src = savedImage;
-  }
-});
+  fetch("togglepublish.php", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: `note_id=${id}&type=${newType}`
+  })
+  .then(() => location.reload());
+}
 
+function addNoteAsSubject(noteId, el) {
+  fetch("add_note_to_subject.php", {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded"},
+    body: "note_id=" + noteId
+  })
+  .then(res => res.text())
+  .then(() => {
+    el.remove();
+  });
+}
+
+function refreshModal() {
+  fetch("fetch_modal_subjects.php")
+    .then(res => res.text())
+    .then(html => {
+      document.querySelector(".subject-list").innerHTML = html;
+    });
+}

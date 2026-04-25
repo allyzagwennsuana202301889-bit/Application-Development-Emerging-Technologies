@@ -408,7 +408,7 @@ button,.file-section button{
 
 /* CARD */
 .subject-card {
-  position: relative;
+  position: relative; 
   background: #e9e9e9;
   padding: 20px;
   margin: 0 12px;
@@ -428,15 +428,24 @@ button,.file-section button{
   padding-bottom: 70px;
 }
 
-
-
-/* DOWNLOAD ICON (top right) */
 .download-icon {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  font-size: 18px;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.download-icon img {
+  width: 50px;
+  height: 50px;
+}
+
+
 
 /* LEFT SIDE */
 .card-left h2 {
@@ -450,7 +459,7 @@ button,.file-section button{
 }
 
 .card-left{
-  font-family: 'itim' cursive;
+  font-family: 'itim', cursive;
 }
 .uploaded {
   font-size: 13px;
@@ -473,6 +482,7 @@ button,.file-section button{
 .card-right {
   text-align: center;
 }
+
 
 .subject-icon {
   width: 80px;
@@ -588,11 +598,26 @@ button,.file-section button{
   margin: 0 auto 5px;
 }
 
+
 .notes-container {
-  padding: 10px 15px 120px; /* bottom space for nav */
+  position: absolute;
+  top: 120px;      /* below nav + folders */
+  bottom: 100px;   /* above bottom bar */
+  left: 0;
+  right: 0;
+
+  overflow-y: auto;
+  padding: 10px 15px;
+
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+
+/* hide scrollbar (optional) */
+.notes-container::-webkit-scrollbar {
+  display: none;
 }
 
 .note-card {
@@ -738,4 +763,213 @@ button,.file-section button{
   box-sizing: border-box;      /* prevents width overflow */
   word-break: break-all;       /* breaks long words */
   overflow-wrap: break-word;   /* fallback */
+}
+
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 999;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 412px;
+  height: 90%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  position: relative;
+}
+
+/* SEARCH */
+.search-box {
+  padding: 20px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #ddd;
+}
+
+/* LIST */
+.subject-list {
+  padding: 10px 20px 80px;
+  overflow-y: auto;
+  height: calc(100% - 100px);
+}
+
+.subject-item {
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.subject-item h3 {
+  margin: 0;
+}
+
+.subject-item p {
+  color: gray;
+}
+
+/* CLOSE ARROW */
+.bottom-arrow {
+  position: absolute;
+  bottom: 10px;
+  width: 100%;
+  text-align: center;
+  font-size: 35px;
+  cursor: pointer;
+}
+
+.content-scroll {
+  position: absolute;
+  top: 80px;     /* below navbar */
+  bottom: 90px;  /* above bottom nav */
+  left: 0;
+  right: 0;
+
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+/* folders stay horizontal */
+.folders {
+  display: flex;
+  gap: 15px;
+  padding: 10px 15px;
+  overflow-x: auto;
+}
+
+/* notes stack vertically */
+.notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+
+
+/* SCROLL AREA */
+.drafts-container {
+  position: absolute;
+  top: 140px;
+  bottom: 90px;
+  left: 0;
+  right: 0;
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* hide scrollbar */
+.drafts-container::-webkit-scrollbar {
+  display: none;
+}
+.drafts-container {
+  position: absolute;
+  top: 200px;   
+  bottom: 90px;
+  left: 0;
+  right: 0;
+}
+
+/* CARD */
+.draft-card {
+  background: #e9e9e9;
+  padding: 20px;
+  position: relative;
+}
+
+/* DOWNLOAD ICON (top right) */
+.draft-download {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 52px;
+  height: 50px;
+}
+
+/* MAIN LAYOUT */
+.draft-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* LEFT SIDE */
+.draft-left h3 {
+  font-size: 26px;
+  margin: 0;
+}
+
+.draft-author {
+  margin: 10px 0;
+  font-size: 14px;
+  font-family: 'Itim', cursive;
+}
+
+/* LEFT BUTTONS (stacked like screenshot) */
+.draft-left-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start; /* 🔥 prevents stretching */
+}
+/* RIGHT SIDE */
+.draft-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+/* ICON */
+.draft-icon {
+  width: 80px;
+  height: 80px;
+}
+
+/* BUTTONS */
+.btn-read,
+.btn-delete,
+.btn-unpublish {
+  background: #3B8BFF;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* make unpublish wider like screenshot */
+.btn-unpublish {
+  padding: 10px 20px;
+}
+
+/* right button */
+.draft-right-btn {
+  display: flex;
+}
+
+/* buttons */
+/* ALL BUTTONS SAME WIDTH */
+.btn-read,
+.btn-delete,
+.btn-unpublish {
+  width: 120px;        /* 🔥 force equal width */
+  text-align: center;
 }

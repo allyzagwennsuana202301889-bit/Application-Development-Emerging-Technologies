@@ -21,7 +21,9 @@ include 'database.php';
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <img src="bell.png" class="bells">
-    <button class="back-btn" button onclick="goBack()"><img src="back.png" ></button> 
+    <button class="back-btn" onclick="history.back()">
+      <img src="back.png">
+    </button> 
   </nav>
 
   <!-- SIDEBAR -->
@@ -35,13 +37,13 @@ include 'database.php';
       <img id="preview" src="acc.png" alt="Upload Image">
     </label>
 
-   <input type="file" id="imageInput" accept="image/*" hidden>
+    <input type="file" id="imageInput" accept="image/*" hidden>
 
     <h3><?php echo $_SESSION['name']; ?></h3>
     <p><?php echo $_SESSION['email']; ?></p>
 
     <a href="homepage.php">Home</a>
-    <a href="#">Notes</a>
+    <a href="notes.php">Notes</a>
     <a href="#">Analytics</a>
     <a href="#">Leaderboard</a>
     <a href="settings.html">Settings</a>
@@ -50,90 +52,115 @@ include 'database.php';
 
   <!-- OVERLAY -->
   <div class="overlay"></div>
-  <!-- FORM START -->
 
+ 
   
-  <form action="insert_subject.php" method="POST">
+  <!-- TOP -->
+  <div class="subject-top">
+    <div class="left">
+      <input 
+        type="text" 
+        id="subjectName"
+        placeholder="(Subject)" 
+        class="subject-input"
+      >
 
-    <!-- TOP CARD (TITLE INPUT) -->
-    <div class="subject-top">
+      <p>
+        Uploaded by:<br>
+        <?php echo $_SESSION['name'] ?? 'Guest'; ?>
+      </p>
+    </div>
 
-      <div class="left">
-        <input 
-          type="text" 
-          name="subject_name" 
-          placeholder="(Subject)" 
-          class="subject-input"
-          required
-        >
+    <div class="right">
+      <img src="addfile.png">
+    </div>
+  </div>
 
-        <p>
-          Uploaded by:<br>
-          <?php echo $_SESSION['name'] ?? 'Guest'; ?>
-        </p>
-      </div>
+  <!-- BODY -->
+  <div class="subject-body">
+    <div class="subject-main-card">
 
-      <div class="right">
-        <img src="addfile.png">
+      <div 
+        class="fake-desc" 
+        contenteditable="true" 
+        id="descBox"
+      >
+        (Insert desc here)
       </div>
 
     </div>
+  </div>
 
-    <!-- MAIN CARD (DESCRIPTION INPUT) -->
-    <div class="subject-body">
+  <!-- BOTTOM -->
+  <div class="bottom-add-section">
 
-      <div class="subject-main-card">
-
-  <!-- hidden file input -->
-  <input type="file" id="fileInput" name="file" hidden>
-
-  <!-- upload icon -->
-  <label for="fileInput" class="upload-center">
-    <img src="addfile.png">
-    <p>File</p>
-  </label>
-
-  <!-- fake placeholder (NOT textarea) -->
-<div 
-  class="fake-desc" 
-  contenteditable="true" 
-  id="descBox"
->
-  (Insert desc here)
-</div>
-
-<!-- hidden textarea for backend -->
-<textarea name="description" id="descInput" hidden></textarea>
-</div>
-
+    <div class="item">
+      <button type="button" onclick="upload()">
+        <img src="upload.png">
+      </button>
+      <p>Upload</p>
     </div>
 
-    <!-- BOTTOM BAR (SUBMIT BUTTON HERE) -->
-    <div class="bottom-add-section">
-
-      <div class="item">
-        <button type="submit">
-          <img src="upload.png">
-        </button>
-        <p>Upload</p>
-      </div>
-
-      <div class="item">
-        <img src="add.png">
-        <p>Add</p>
-      </div>
-
-      <div class="item">
-        <img src="flashcards.png">
-        <p>Flash Cards</p>
-      </div>
-
+    <div class="item">
+      <img src="add.png">
+      <p>Add</p>
     </div>
 
-  </form>
-  <!-- FORM END -->
+    <div class="item">
+      <img src="flashcards.png">
+      <p>Flash Cards</p>
+    </div>
+
+  </div>
 
 </div>
+<script>
+const subjectInput = document.getElementById("subjectName");
+const descBox = document.getElementById("descBox");
+
+/* CHECK CONTENT */
+function hasContent() {
+  const title = subjectInput.value.trim();
+  const body = descBox.innerText.trim();
+
+  return title !== "" || (body !== "" && body !== "(Insert desc here)");
+}
+
+/* SAVE */
+function saveDraft() {
+  if (!hasContent()) return Promise.resolve();
+
+  const params = new URLSearchParams();
+  params.append("title", subjectInput.value.trim());
+  params.append("content", descBox.innerText.trim());
+  params.append("type", "subject_draft");
+
+  return fetch('save_note.php', {
+    method: 'POST',
+    body: params
+  });
+}
+
+/* BACK BUTTON */
+document.querySelector(".back-btn").addEventListener("click", async function (e) {
+  e.preventDefault();
+  await saveDraft();
+  history.back();
+});
+
+/* SAVE ON EXIT */
+window.addEventListener("beforeunload", function () {
+  if (!hasContent()) return;
+
+  const params = new URLSearchParams();
+  params.append("title", subjectInput.value.trim());
+  params.append("content", descBox.innerText.trim());
+  params.append("type", "subject_draft");
+
+  navigator.sendBeacon("savenote.php", params);
+});
+</script>
+
 <script src="script.js"></script>
 
 </body>
