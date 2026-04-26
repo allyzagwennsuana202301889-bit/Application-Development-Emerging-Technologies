@@ -44,9 +44,9 @@ if ($result && $result->num_rows > 0) {
 
         $_SESSION['student_id'] = $new_id;
         $_SESSION['name'] = $name;
-        $_SESSION['email'] = $email; // ✅ FIX
+        $_SESSION['email'] = $email; 
 
-        header("Location: homepage.php"); // ✅ FIX
+        header("Location: homepage.php"); 
         exit();
 
     } else {

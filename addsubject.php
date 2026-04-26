@@ -1,6 +1,18 @@
 <?php
 session_start();
 include 'database.php';
+
+$note = null;
+
+if (isset($_GET['note_id'])) {
+  $note_id = (int)$_GET['note_id'];
+
+  $stmt = $conn->prepare("SELECT * FROM notes WHERE note_id = ?");
+  $stmt->bind_param("i", $note_id);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $note = $result->fetch_assoc();
+}
 ?>
 
 <!DOCTYPE html>
@@ -11,6 +23,35 @@ include 'database.php';
 
   <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Delete button on card */
+    .delete-card-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: #ff4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      line-height: 1;
+      padding-bottom: 2px;
+    }
+    .delete-card-btn:hover {
+      background: #cc0000;
+    }
+    .subject-main-card {
+      position: relative;
+    }
+  </style>
 </head>
 
 <body>
@@ -21,7 +62,7 @@ include 'database.php';
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <img src="bell.png" class="bells">
-    <button class="back-btn" onclick="history.back()">
+    <button class="back-btn">
       <img src="back.png">
     </button> 
   </nav>
@@ -53,8 +94,8 @@ include 'database.php';
   <!-- OVERLAY -->
   <div class="overlay"></div>
 
- 
-  
+
+
   <!-- TOP -->
   <div class="subject-top">
     <div class="left">
@@ -63,6 +104,7 @@ include 'database.php';
         id="subjectName"
         placeholder="(Subject)" 
         class="subject-input"
+        value="<?= htmlspecialchars($note['title'] ?? '') ?>"
       >
 
       <p>
@@ -77,20 +119,36 @@ include 'database.php';
   </div>
 
   <!-- BODY -->
-  <div class="subject-body">
+<?php
+$cards = [];
+
+if ($note && !empty($note['content'])) {
+  $decoded = json_decode($note['content'], true);
+  $cards = is_array($decoded) ? $decoded : [$note['content']];
+}
+?>
+
+<div class="subject-body" id="cardContainer">
+
+<?php if (!empty($cards)): ?>
+  <?php foreach ($cards as $card): ?>
     <div class="subject-main-card">
-
-      <div 
-        class="fake-desc" 
-        contenteditable="true" 
-        id="descBox"
-      >
-        (Insert desc here)
+      <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+      <div class="fake-desc" contenteditable="true">
+        <?= htmlspecialchars($card) ?>
       </div>
-
+    </div>
+  <?php endforeach; ?>
+<?php else: ?>
+  <div class="subject-main-card">
+    <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+    <div class="fake-desc" contenteditable="true">
+      (Insert desc here)
     </div>
   </div>
+<?php endif; ?>
 
+</div>
   <!-- BOTTOM -->
   <div class="bottom-add-section">
 
@@ -101,10 +159,12 @@ include 'database.php';
       <p>Upload</p>
     </div>
 
-    <div class="item">
-      <img src="add.png">
-      <p>Add</p>
-    </div>
+  <div class="item">
+  <button onclick="addCard()">
+    <img src="add.png">
+  </button>
+  <p>Add</p>
+</div>
 
     <div class="item">
       <img src="flashcards.png">
@@ -115,50 +175,162 @@ include 'database.php';
 
 </div>
 <script>
-const subjectInput = document.getElementById("subjectName");
-const descBox = document.getElementById("descBox");
 
-/* CHECK CONTENT */
-function hasContent() {
-  const title = subjectInput.value.trim();
-  const body = descBox.innerText.trim();
+let NOTE_ID = <?= isset($note['note_id']) ? $note['note_id'] : 'null' ?>;
+const STORAGE_KEY = 'subjectDraft_' + (NOTE_ID || 'new');
 
-  return title !== "" || (body !== "" && body !== "(Insert desc here)");
+/* ========== LOCAL STATE ========== */
+
+function getLocalState() {
+  const raw = sessionStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : null;
 }
 
-/* SAVE */
-function saveDraft() {
-  if (!hasContent()) return Promise.resolve();
+function setLocalState(state) {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
 
-  const params = new URLSearchParams();
-  params.append("title", subjectInput.value.trim());
-  params.append("content", descBox.innerText.trim());
-  params.append("type", "subject_draft");
+function clearLocalState() {
+  sessionStorage.removeItem(STORAGE_KEY);
+}
 
-  return fetch('save_note.php', {
-    method: 'POST',
-    body: params
+/* ========== CONTENT CHECK ========== */
+
+function hasRealContent() {
+  const title = document.getElementById("subjectName").value.trim();
+  const cards = getAllContent();
+  const hasRealCards = cards.some(text => text && text !== "(Insert desc here)");
+  return title !== "" || hasRealCards;
+}
+
+/* ========== CARD MANAGEMENT ========== */
+
+function addCard() {
+  const container = document.getElementById("cardContainer");
+
+  const newCard = document.createElement("div");
+  newCard.className = "subject-main-card";
+  newCard.innerHTML = `
+    <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+    <div class="fake-desc" contenteditable="true">
+      (Insert desc here)
+    </div>
+  `;
+
+  container.appendChild(newCard);
+  persistToSession();
+}
+
+function deleteCard(btn) {
+  const card = btn.closest('.subject-main-card');
+  if (card) {
+    card.remove();
+    persistToSession();
+  }
+}
+
+function getAllContent() {
+  const boxes = document.querySelectorAll(".fake-desc");
+  let content = [];
+  boxes.forEach(box => content.push(box.innerText.trim()));
+  return content;
+}
+
+function persistToSession() {
+  setLocalState({
+    title: document.getElementById("subjectName").value,
+    cards: getAllContent()
   });
 }
 
-/* BACK BUTTON */
+/* ========== RESTORE ON LOAD ========== */
+
+function restoreFromSession() {
+  const local = getLocalState();
+  if (!local) return;
+
+  if (local.title) {
+    document.getElementById("subjectName").value = local.title;
+  }
+
+  const container = document.getElementById("cardContainer");
+  container.innerHTML = "";
+
+  if (local.cards && local.cards.length > 0) {
+    local.cards.forEach(text => {
+      const card = document.createElement("div");
+      card.className = "subject-main-card";
+      card.innerHTML = `<button class="delete-card-btn" onclick="deleteCard(this)">-</button><div class="fake-desc" contenteditable="true">${escapeHtml(text)}</div>`;
+      container.appendChild(card);
+    });
+  } else {
+    container.innerHTML = `
+      <div class="subject-main-card">
+        <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+        <div class="fake-desc" contenteditable="true">(Insert desc here)</div>
+      </div>
+    `;
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/* ========== DATABASE SAVE (only on back button) ========== */
+
+function saveToDatabase() {
+  if (!hasRealContent()) {
+    clearLocalState();
+    return Promise.resolve();
+  }
+
+  const cards = getAllContent();
+  const title = document.getElementById("subjectName").value.trim();
+
+  const params = new URLSearchParams();
+  params.append("title", title);
+  params.append("content", JSON.stringify(cards));
+  params.append("type", "subject_draft");
+
+  if (NOTE_ID) {
+    params.append("note_id", NOTE_ID);
+  }
+
+  return fetch('savenote.php', {
+    method: 'POST',
+    body: params
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!NOTE_ID && data.note_id) {
+      NOTE_ID = data.note_id;
+    }
+    clearLocalState();
+  })
+  .catch(err => console.error('Save failed:', err));
+}
+
+/* ========== EVENT LISTENERS ========== */
+
+window.addEventListener("load", restoreFromSession);
+
+document.getElementById("cardContainer").addEventListener("input", function(e) {
+  if (e.target.classList.contains("fake-desc")) {
+    persistToSession();
+  }
+}, true);
+
+document.getElementById("subjectName").addEventListener("input", persistToSession);
+
 document.querySelector(".back-btn").addEventListener("click", async function (e) {
   e.preventDefault();
-  await saveDraft();
+  await saveToDatabase();
   history.back();
 });
 
-/* SAVE ON EXIT */
-window.addEventListener("beforeunload", function () {
-  if (!hasContent()) return;
-
-  const params = new URLSearchParams();
-  params.append("title", subjectInput.value.trim());
-  params.append("content", descBox.innerText.trim());
-  params.append("type", "subject_draft");
-
-  navigator.sendBeacon("savenote.php", params);
-});
 </script>
 
 <script src="script.js"></script>

@@ -4,7 +4,6 @@ include 'database.php';
 
 $id = $_GET['id'];
 
-// ✅ FIX: use LEFT JOIN so presets still show
 $sql = "SELECT subjects.*, student.name 
         FROM subjects 
         LEFT JOIN student ON subjects.student_id = student.student_id

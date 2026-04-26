@@ -138,14 +138,10 @@ if ($result->num_rows === 0) {
     <!-- BOTTOM -->
       <div class="bottom-add-section">
 
-    <div class="item">
-      <button type="button">
-        <img src="addnote.png">
-      </button>
-      <p>Upload</p>
-    </div>
-
-
+     <div class="item">
+    <button onclick="addnote()"><img src="addnote.png"></button>
+    <p>Add Subject</p>
+  </div>
 
     <div class="item">
       <button onclick="goBack()""><img src="back.png"></button>

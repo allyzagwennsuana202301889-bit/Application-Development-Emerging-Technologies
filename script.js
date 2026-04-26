@@ -133,6 +133,14 @@ function openFolder(id) {
   window.location.href = "notes.php?folder_id=" + id;
 }
 
+function viewSubject(id) {
+  window.location.href = "view_subject.php?subject_id=" + id;
+}
+
+function viewNote(id) {
+  window.location.href = "view_note.php?note_id=" + id;
+}
+
 // MODAL CONTROLS (must be global)
 function openModal() {
   const modal = document.getElementById("modal");
@@ -178,7 +186,12 @@ function togglePublish(id, currentType) {
     headers: {"Content-Type": "application/x-www-form-urlencoded"},
     body: `note_id=${id}&type=${newType}`
   })
-  .then(() => location.reload());
+  .then(() => {
+    // Refresh the modal list without full page reload
+    refreshModal();
+    // Also refresh the current page cards
+    location.reload();
+  });
 }
 
 function addNoteAsSubject(noteId, el) {
@@ -197,6 +210,28 @@ function refreshModal() {
   fetch("fetch_modal_subjects.php")
     .then(res => res.text())
     .then(html => {
-      document.querySelector(".subject-list").innerHTML = html;
+      const list = document.querySelector(".subject-list");
+      if (list) list.innerHTML = html;
     });
 }
+
+// Auto-refresh modal when it opens
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("modal");
+  if (modal) {
+    // Use MutationObserver to detect when modal becomes visible
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "style") {
+          if (modal.style.display === "flex") {
+            refreshModal();
+          }
+        }
+      });
+    });
+    observer.observe(modal, { attributes: true });
+  }
+});
+
+
+
