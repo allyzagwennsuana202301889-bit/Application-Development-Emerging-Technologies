@@ -157,6 +157,10 @@ function readNote(id) {
   window.location.href = "viewnote.php?note_id=" + id;
 }
 
+function noting() {
+  window.location.href = "writenotes.php"
+}
+
 function deleteNote(id) {
   if (!confirm("Delete this note?")) return;
 
@@ -232,6 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(modal, { attributes: true });
   }
 });
+
 
 
 

@@ -21,6 +21,27 @@ $result = $stmt->get_result();
 <head>
   <meta charset="UTF-8">
   <title>Add Subject</title>
+  <style>
+     .folder {
+  position: relative;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 0;
+  right: 5px;
+  background: red;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: none;
+}
+
+.folder.show-delete .delete-btn {
+  display: block;
+}
+</style>
   <link rel="stylesheet" href="style.css">
 
 </head>
@@ -61,6 +82,12 @@ $result = $stmt->get_result();
   <div class="overlay"></div>
 
  <div class="folders">
+
+   <div class="folder add-folder" onclick="createFolder()">
+    <img src="add.png">
+    <p>Add</p>
+  </div>
+
   <?php
   $student_id = $_SESSION['student_id'];
 
@@ -72,10 +99,19 @@ $result = $stmt->get_result();
 
   while ($row = $folder_result->fetch_assoc()) {
     echo "
-      <div class='folder' onclick='openFolder(".$row['folder_id'].")'>
-        <img src='folder.png'>
-        <p>{$row['folder_name']}</p>
-      </div>
+<div class='folder' data-id='".$row['folder_id']."'>
+
+  <button class='delete-btn'
+    onclick='deleteFolder(".$row['folder_id'].", event)'>−</button>
+
+  <img src='folder.png'>
+
+  <p class='folder-name'
+     onclick='renameFolder(".$row['folder_id'].", event)'>
+     {$row['folder_name']}
+  </p>
+
+</div>
     ";
   }
   ?>
@@ -144,7 +180,7 @@ if ($result->num_rows === 0) {
   </div>
 
     <div class="item">
-      <button onclick="goBack()""><img src="back.png"></button>
+      <button onclick="goBack()"><img src="back.png"></button>
       <p>Back</p>
     </div>
 </div>
@@ -155,9 +191,122 @@ if ($result->num_rows === 0) {
 const descBox = document.getElementById("descBox");
 const descInput = document.getElementById("descInput");
 
-descBox.addEventListener("input", () => {
-  descInput.value = descBox.innerText;
+if (descBox && descInput) {
+  descBox.addEventListener("input", () => {
+    descInput.value = descBox.innerText;
+  });
+}
+
+/* ================= OPEN FOLDER ================= */
+function openFolder(id){
+  window.location.href = "notes.php?folder_id=" + id;
+}
+
+/* ================= DELETE FOLDER ================= */
+function deleteFolder(id,e){
+  e.stopPropagation();
+
+  fetch("delete_folder.php",{
+    method:"POST",
+    body:new URLSearchParams({folder_id:id})
+  })
+  .then(res=>res.text())
+  .then(data=>{
+    console.log("delete folder:", data);
+    location.reload();
+  });
+}
+
+/* ================= RENAME ================= */
+function renameFolder(id, e){
+  e.stopPropagation();
+
+  let newName = prompt("New folder name:");
+  if(!newName) return;
+
+  fetch("rename_folder.php",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      folder_id: id,
+      folder_name: newName
+    })
+  })
+  .then(res=>res.text())
+  .then(data=>{
+    console.log("rename:", data);
+    location.reload();
+  });
+}
+
+/* ================= HOLD SYSTEM ================= */
+document.querySelectorAll(".folder").forEach(folder=>{
+  let id = folder.dataset.id;
+
+  // skip ADD button
+  if(!id) return;
+
+  let holdTimer;
+  let isHolding = false;
+
+  folder.addEventListener("mousedown", startHold);
+  folder.addEventListener("touchstart", startHold);
+
+  folder.addEventListener("mouseup", cancelHold);
+  folder.addEventListener("mouseleave", cancelHold);
+  folder.addEventListener("touchend", cancelHold);
+
+  function startHold(){
+    isHolding = false;
+
+    holdTimer = setTimeout(()=>{
+      isHolding = true;
+
+      document.querySelectorAll(".folder")
+        .forEach(f => f.classList.remove("show-delete"));
+
+      folder.classList.add("show-delete");
+    }, 600);
+  }
+
+  function cancelHold(){
+    clearTimeout(holdTimer);
+  }
+
+  folder.addEventListener("click", (e)=>{
+    if(isHolding){
+      e.stopImmediatePropagation();
+      return;
+    }
+
+    openFolder(id);
+  });
 });
+
+/* ================= CLICK OUTSIDE ================= */
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".folder")){
+    document.querySelectorAll(".folder")
+      .forEach(f => f.classList.remove("show-delete"));
+  }
+});
+
+function createFolder(){
+  let name = prompt("Folder name");
+  if(!name) return;
+
+  fetch("create_folder.php",{
+    method:"POST",
+    body:new URLSearchParams({folder_name:name})
+  })
+  .then(res=>res.text())
+  .then(data=>{
+    console.log("create folder:", data);
+    location.reload();
+  });
+}
 </script>
 <script src="script.js"></script>
 </body>
