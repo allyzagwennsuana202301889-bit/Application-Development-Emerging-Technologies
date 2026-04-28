@@ -237,6 +237,40 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+//back save//
 
+function saveAndBack(){
+  let title = document.querySelector("[name='title']").value.trim();
+  let content = document.querySelector("[name='content']").value.trim();
+
+  //  don't save empty notes
+  if(title === "" && content === ""){
+    window.history.back();
+    return;
+  }
+
+  fetch("savingnote.php", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      title: title,
+      content: content
+    })
+  })
+  .then(res => res.text())
+  .then(data => {
+    console.log("Saved:", data);
+
+    //  AFTER saving → go back
+    window.location.href = "notes.php"; 
+    // or use history.back() if you prefer
+  })
+  .catch(err => {
+    console.error(err);
+    window.history.back(); // fallback
+  });
+}
 
 

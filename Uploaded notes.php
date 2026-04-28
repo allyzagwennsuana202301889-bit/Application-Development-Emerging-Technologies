@@ -1,3 +1,9 @@
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+
+
 <?php
 session_start();
 include 'database.php';
@@ -154,7 +160,9 @@ if ($result->num_rows === 0) {
 
     <!-- RIGHT SIDE -->
     <div class='draft-right'>
-      <img src='subject-icon.png' class='draft-icon'>
+      <img src='" . (!empty($draft['subject_image']) 
+    ? htmlspecialchars($draft['subject_image']) 
+    : "subject-icon.png") . "' class='draft-icon'>
 
      <button onclick='togglePublish(" . $draft['note_id'] . ", \"" . $draft['type'] . "\")' class='btn-unpublish'>
   " . ($draft['type'] === 'subject' ? 'Unpublish' : 'Publish') . "
@@ -305,6 +313,59 @@ function createFolder(){
   .then(data=>{
     console.log("create folder:", data);
     location.reload();
+  });
+}
+
+function hasRealContent() {
+  const title = document.getElementById("subjectName").value.trim();
+  const cards = getAllContent();
+
+  const hasRealCards = cards.some(card => {
+    const hasTitle = card.title && card.title.trim() !== "" && card.title !== "(Insert title here)";
+    const hasDesc  = card.desc && card.desc.trim() !== "" && card.desc !== "(Insert desc here)";
+    const hasImage = card.img && !card.img.includes("addfile.png");
+
+    return hasTitle || hasDesc || hasImage;
+  });
+
+  return title !== "" || hasRealCards;
+}
+
+/* ================= READ NOTE ================= */
+function readNote(id){
+  window.location.href = "viewnote.php?note_id=" + id;
+}
+
+/* ================= DELETE NOTE ================= */
+function deleteNote(id){
+  if (!confirm("Delete this note?")) return;
+
+  fetch("delete_note.php", {
+    method: "POST",
+    body: new URLSearchParams({ note_id: id })
+  })
+  .then(res => res.text())
+  .then(data => {
+    console.log("delete:", data);
+    location.reload(); // 🔥 refresh list
+  });
+}
+
+/* ================= TOGGLE PUBLISH ================= */
+function togglePublish(id, currentType){
+  const newType = currentType === "subject" ? "subject_draft" : "subject";
+
+  fetch("togglepublish.php", {
+    method: "POST",
+    body: new URLSearchParams({
+      note_id: id,
+      type: newType
+    })
+  })
+  .then(res => res.text())
+  .then(data => {
+    console.log("toggle:", data);
+    location.reload(); // 🔥 VERY IMPORTANT
   });
 }
 </script>

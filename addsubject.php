@@ -1,8 +1,13 @@
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 <?php
 session_start();
 include 'database.php';
 
 $note = null;
+$cards = []; // FIX 1: always define
 
 if (isset($_GET['note_id'])) {
   $note_id = (int)$_GET['note_id'];
@@ -12,6 +17,14 @@ if (isset($_GET['note_id'])) {
   $stmt->execute();
   $result = $stmt->get_result();
   $note = $result->fetch_assoc();
+
+  //  FIX 2: safely decode cards
+  if ($note && !empty($note['content'])) {
+    $decoded = json_decode($note['content'], true);
+    if (is_array($decoded)) {
+      $cards = $decoded;
+    }
+  }
 }
 ?>
 
@@ -51,6 +64,14 @@ if (isset($_GET['note_id'])) {
     .subject-main-card {
       position: relative;
     }
+
+  .subject-image {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  cursor: pointer;
+  opacity: 0.7;
+}
   </style>
 </head>
 
@@ -114,39 +135,59 @@ if (isset($_GET['note_id'])) {
     </div>
 
     <div class="right">
-      <img src="addfile.png">
+      <label class="subject-image-label">
+    <img 
+      id="subjectImagePreview"
+      src="<?= !empty($note['subject_image']) ? htmlspecialchars($note['subject_image']) : 'addfile.png' ?>"
+      class="subject-image"
+    >
+    <input type="file" id="subjectImageInput" accept="image/*" hidden>
+  </label>
     </div>
   </div>
 
   <!-- BODY -->
-<?php
-$cards = [];
-
-if ($note && !empty($note['content'])) {
-  $decoded = json_decode($note['content'], true);
-  $cards = is_array($decoded) ? $decoded : [$note['content']];
-}
-?>
-
-<div class="subject-body" id="cardContainer">
+<div id="cardContainer">
 
 <?php if (!empty($cards)): ?>
-  <?php foreach ($cards as $card): ?>
+  <?php foreach ($cards as $card): 
+    $title = $card['title'] ?? '';
+    $desc  = $card['desc'] ?? '';
+    $img   = $card['img'] ?? 'addfile.png';
+  ?>
     <div class="subject-main-card">
       <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+
+      <label>
+        <img src="<?= htmlspecialchars($img) ?>" class="card-image-preview">
+        <input type="file" class="card-image-input" hidden>
+      </label>
+
+      <input class="card-title" value="<?= htmlspecialchars($title) ?>">
+
       <div class="fake-desc" contenteditable="true">
-        <?= htmlspecialchars($card) ?>
+        <?= htmlspecialchars($desc) ?>
       </div>
     </div>
   <?php endforeach; ?>
+
 <?php else: ?>
+  <!-- DEFAULT CARD -->
   <div class="subject-main-card">
     <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
-    <div class="fake-desc" contenteditable="true">
-      (Insert desc here)
-    </div>
+
+    <label>
+      <img src="addfile.png" class="card-image-preview">
+      <input type="file" class="card-image-input" hidden>
+    </label>
+
+    <input class="card-title" placeholder="(Insert title here)">
+
+    <div class="fake-desc" contenteditable="true">(Insert desc here)</div>
   </div>
 <?php endif; ?>
+
+</div>
 
 </div>
   <!-- BOTTOM -->
@@ -198,8 +239,17 @@ function clearLocalState() {
 
 function hasRealContent() {
   const title = document.getElementById("subjectName").value.trim();
+
   const cards = getAllContent();
-  const hasRealCards = cards.some(text => text && text !== "(Insert desc here)");
+
+  const hasRealCards = cards.some(card => {
+    const hasTitle = card.title && card.title.trim() !== "" && card.title !== "(Insert title here)";
+    const hasDesc  = card.desc && card.desc.trim() !== "" && card.desc !== "(Insert desc here)";
+    const hasImage = card.img && !card.img.includes("addfile.png");
+
+    return hasTitle || hasDesc || hasImage;
+  });
+
   return title !== "" || hasRealCards;
 }
 
@@ -210,14 +260,22 @@ function addCard() {
 
   const newCard = document.createElement("div");
   newCard.className = "subject-main-card";
+
   newCard.innerHTML = `
     <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
-    <div class="fake-desc" contenteditable="true">
-      (Insert desc here)
-    </div>
+
+    <label class="card-image-label">
+      <img src="addfile.png" class="card-image-preview">
+      <input type="file" class="card-image-input" accept="image/*" hidden>
+    </label>
+
+    <input type="text" class="card-title" placeholder="(Insert title here)">
+
+    <div class="fake-desc" contenteditable="true">(Insert desc here)</div>
   `;
 
   container.appendChild(newCard);
+  attachImageHandler(newCard);
   persistToSession();
 }
 
@@ -230,19 +288,32 @@ function deleteCard(btn) {
 }
 
 function getAllContent() {
-  const boxes = document.querySelectorAll(".fake-desc");
-  let content = [];
-  boxes.forEach(box => content.push(box.innerText.trim()));
-  return content;
+  const cards = document.querySelectorAll(".subject-main-card");
+
+  let data = [];
+
+  cards.forEach(card => {
+    const title = card.querySelector(".card-title")?.value || "";
+    const desc = card.querySelector(".fake-desc")?.innerText || "";
+    const img = card.querySelector(".card-image-preview")?.src || "";
+
+    data.push({
+      title,
+      desc,
+      img
+    });
+  });
+
+  return data;
 }
 
 function persistToSession() {
   setLocalState({
     title: document.getElementById("subjectName").value,
+    subjectImage: subjectImageData,
     cards: getAllContent()
   });
 }
-
 /* ========== RESTORE ON LOAD ========== */
 
 function restoreFromSession() {
@@ -253,16 +324,35 @@ function restoreFromSession() {
     document.getElementById("subjectName").value = local.title;
   }
 
+  if (local.subjectImage) {
+  subjectImageData = local.subjectImage;
+  document.getElementById("subjectImagePreview").src = local.subjectImage;
+}
+
   const container = document.getElementById("cardContainer");
   container.innerHTML = "";
 
   if (local.cards && local.cards.length > 0) {
-    local.cards.forEach(text => {
-      const card = document.createElement("div");
-      card.className = "subject-main-card";
-      card.innerHTML = `<button class="delete-card-btn" onclick="deleteCard(this)">-</button><div class="fake-desc" contenteditable="true">${escapeHtml(text)}</div>`;
-      container.appendChild(card);
-    });
+    local.cards.forEach(c => {
+  const card = document.createElement("div");
+  card.className = "subject-main-card";
+
+  card.innerHTML = `
+    <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+
+    <label class="card-image-label">
+      <img src="${c.img || 'addfile.png'}" class="card-image-preview">
+      <input type="file" class="card-image-input" accept="image/*" hidden>
+    </label>
+
+    <input type="text" class="card-title" value="${escapeHtml(c.title || '')}" placeholder="(Insert title here)">
+
+    <div class="fake-desc" contenteditable="true">${escapeHtml(c.desc || '')}</div>
+  `;
+
+  container.appendChild(card);
+  attachImageHandler(card);
+});
   } else {
     container.innerHTML = `
       <div class="subject-main-card">
@@ -294,6 +384,10 @@ function saveToDatabase() {
   params.append("title", title);
   params.append("content", JSON.stringify(cards));
   params.append("type", "subject_draft");
+
+  if (subjectImageData) {
+  params.append("subject_image", subjectImageData);
+}
 
   if (NOTE_ID) {
     params.append("note_id", NOTE_ID);
@@ -331,6 +425,48 @@ document.querySelector(".back-btn").addEventListener("click", async function (e)
   history.back();
 });
 
+
+function attachImageHandler(card){
+  const input = card.querySelector(".card-image-input");
+  const preview = card.querySelector(".card-image-preview");
+
+  input.addEventListener("change", function(){
+    const file = this.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+      preview.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    persistToSession();
+  });
+}
+
+let subjectImageData = null;
+
+document.getElementById("subjectImageInput").addEventListener("change", function(){
+  const file = this.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    subjectImageData = e.target.result;
+    document.getElementById("subjectImagePreview").src = subjectImageData;
+    persistToSession();
+  };
+  reader.readAsDataURL(file);
+});
+
+window.addEventListener("load", () => {
+  restoreFromSession();
+
+  //  attach image handler to ALL existing cards
+  document.querySelectorAll(".subject-main-card").forEach(card => {
+    attachImageHandler(card);
+  });
+});
 </script>
 
 <script src="script.js"></script>

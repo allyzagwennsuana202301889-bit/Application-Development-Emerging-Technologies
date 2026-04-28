@@ -94,20 +94,43 @@ if (!empty($note['content'])) {
     <p class="uploaded"><strong>Uploaded by:</strong><br><?= htmlspecialchars($note['uploader_name']) ?></p>
   </div>
 
-  <div class="top-right">
-    <img src="chemistry.png" class="subject-icon">
+<div class="top-right">
+  <label>
+    <img id="subjectImagePreview"
+         src="<?= htmlspecialchars($note['subject_image'] ?? 'subject-icon.png') ?>"
+         class="subject-icon">
+    <input type="file" id="subjectImageInput" hidden disabled>
+  </label>
+</div>
+</div>
+<!-- CONTENT -->
+<div id="cardContainer">
+<?php foreach ($cards as $card): 
+  $title = $card['title'] ?? '';
+  $desc  = $card['desc'] ?? '';
+  $img   = $card['img'] ?? 'addfile.png';
+?>
+
+<div class="subject-main-card">
+  <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
+
+  <label class="card-image-label">
+    <img src="<?= htmlspecialchars($img) ?>" class="card-image-preview">
+    <input type="file" class="card-image-input" hidden disabled>
+  </label>
+
+  <input 
+    type="text" 
+    class="card-title" 
+    value="<?= htmlspecialchars($title) ?>" 
+    readonly
+  >
+
+  <div class="fake-desc" contenteditable="false">
+    <?= htmlspecialchars($desc) ?>
   </div>
 </div>
 
-<!-- CONTENT -->
-<div id="cardContainer">
-<?php foreach ($cards as $card): ?>
-    <div class="subject-main-card">
-      <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
-      <div class="text-side fake-desc" contenteditable="false">
-        <?= nl2br(htmlspecialchars($card)) ?>
-      </div>
-    </div>
 <?php endforeach; ?>
 </div>
 
@@ -135,61 +158,106 @@ if (!empty($note['content'])) {
   </div>
 
 <script>
-
 let NOTE_ID = <?= isset($note['note_id']) ? $note['note_id'] : 'null' ?>;
-const STORAGE_KEY = 'viewnoteDraft_' + (NOTE_ID || 'new');
 let isEditing = false;
+let subjectImageData = "<?= htmlspecialchars($note['subject_image'] ?? '') ?>";
 
-/* ========== LOCAL STATE ========== */
-
-function getLocalState() {
-  const raw = sessionStorage.getItem(STORAGE_KEY);
-  return raw ? JSON.parse(raw) : null;
-}
-
-function setLocalState(state) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function clearLocalState() {
-  sessionStorage.removeItem(STORAGE_KEY);
-}
-
-/* ========== EDIT / SAVE TOGGLE ========== */
-
+/* ========== TOGGLE EDIT ========== */
 function toggleEditMode() {
   isEditing = !isEditing;
-  const mainContent = document.getElementById('mainContent');
+ const mainContent = document.getElementById('mainContent');
   const titleInput = document.getElementById('subjectName');
   const descs = document.querySelectorAll('.fake-desc');
-  const editSaveImg = document.getElementById('editSaveImg');
+  const titles = document.querySelectorAll('.card-title');
+  const imageInputs = document.querySelectorAll('.card-image-input');
+  const subjectImageInput = document.getElementById("subjectImageInput");
+
   const editSaveText = document.getElementById('editSaveText');
   const addBtnWrapper = document.getElementById('addBtnWrapper');
 
   if (isEditing) {
-    // Switch to EDIT mode
-    mainContent.classList.add('edit-mode');
+  mainContent.classList.add('edit-mode');   // 🔥 REQUIRED
+} else {
+  mainContent.classList.remove('edit-mode'); // 🔥 REQUIRED
+}
+
+  if (isEditing) {
     titleInput.readOnly = false;
-    titleInput.focus();
     descs.forEach(el => el.contentEditable = "true");
-    editSaveImg.src = "Edit.png";
+    titles.forEach(t => t.removeAttribute("readonly"));
+    imageInputs.forEach(i => i.disabled = false);
+    if (subjectImageInput) subjectImageInput.disabled = false;
+
     editSaveText.textContent = "Save";
     addBtnWrapper.style.display = "flex";
+
   } else {
-    // Switch to SAVE mode
     saveToDatabase().then(() => {
-      mainContent.classList.remove('edit-mode');
       titleInput.readOnly = true;
       descs.forEach(el => el.contentEditable = "false");
-      editSaveImg.src = "Edit.png";
+      titles.forEach(t => t.setAttribute("readonly", true));
+      imageInputs.forEach(i => i.disabled = true);
+      if (subjectImageInput) subjectImageInput.disabled = true;
+
       editSaveText.textContent = "Edit";
       addBtnWrapper.style.display = "none";
     });
   }
 }
 
-/* ========== CARD MANAGEMENT ========== */
+/* ========== SAVE DATABASE (ONLY ONE VERSION) ========== */
+function saveToDatabase() {
+  const params = new URLSearchParams();
 
+  params.append("title", document.getElementById("subjectName").value);
+  params.append("content", JSON.stringify(getAllContent()));
+  params.append("type", "subject_draft");
+
+  if (NOTE_ID) {
+    params.append("note_id", NOTE_ID);
+  }
+
+  if (subjectImageData) {
+    params.append("subject_image", subjectImageData);
+  }
+
+  return fetch('savenote.php', {
+    method: 'POST',
+    body: params
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log("SAVE RESPONSE:", data);
+
+    // 🔥 CRITICAL FIX
+    if (data.note_id) {
+      NOTE_ID = data.note_id;
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Save failed");
+  });
+}
+
+/* ========== GET CONTENT ========== */
+function getAllContent() {
+  const cards = document.querySelectorAll(".subject-main-card");
+
+  let data = [];
+
+  cards.forEach(card => {
+    data.push({
+      title: card.querySelector(".card-title")?.value || "",
+      desc: card.querySelector(".fake-desc")?.innerText || "",
+      img: card.querySelector(".card-image-preview")?.src || ""
+    });
+  });
+
+  return data;
+}
+
+/* ========== ADD CARD (FIXED STRUCTURE) ========== */
 function addCard() {
   if (!isEditing) return;
 
@@ -199,124 +267,88 @@ function addCard() {
   newCard.className = "subject-main-card";
   newCard.innerHTML = `
     <button class="delete-card-btn" onclick="deleteCard(this)">-</button>
-    <div class="text-side fake-desc" contenteditable="true">
-      (Insert desc here)
-    </div>
+
+    <label class="card-image-label">
+      <img src="addfile.png" class="card-image-preview">
+      <input type="file" class="card-image-input">
+    </label>
+
+    <input type="text" class="card-title" placeholder="Title">
+
+    <div class="fake-desc" contenteditable="true">(Insert desc here)</div>
   `;
 
   container.appendChild(newCard);
-  persistToSession();
+  attachImageHandler(newCard);
 }
 
 function deleteCard(btn) {
   if (!isEditing) return;
-  const card = btn.closest('.subject-main-card');
-  if (card) {
-    card.remove();
-    persistToSession();
-  }
+  btn.closest('.subject-main-card')?.remove();
 }
 
-function getAllContent() {
-  const boxes = document.querySelectorAll(".fake-desc");
-  let content = [];
-  boxes.forEach(box => content.push(box.innerText.trim()));
-  return content;
-}
+/* ========== IMAGE HANDLER ========== */
+function attachImageHandler(card){
+  const input = card.querySelector(".card-image-input");
+  const preview = card.querySelector(".card-image-preview");
 
-function persistToSession() {
-  setLocalState({
-    title: document.getElementById("subjectName").value,
-    cards: getAllContent()
+  if (!input || !preview) return;
+
+  input.addEventListener("change", function(){
+    const file = this.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+      preview.src = e.target.result;
+
+      // 🔥 THIS IS WHAT YOU WERE MISSING
+      preview.setAttribute("data-img", e.target.result);
+    };
+    reader.readAsDataURL(file);
   });
 }
 
-/* ========== RESTORE ON LOAD ========== */
+/* ========== INIT ========== */
+window.addEventListener("load", () => {
+  document.querySelectorAll(".subject-main-card").forEach(card => {
+    attachImageHandler(card);
+  });
+});
 
-function restoreFromSession() {
-  const local = getLocalState();
-  if (!local) return;
+/* ========== SUBJECT IMAGE ========== */
+const subjectInput = document.getElementById("subjectImageInput");
 
-  if (local.title) {
-    document.getElementById("subjectName").value = local.title;
-  }
+if (subjectInput) {
+  subjectInput.addEventListener("change", function(){
+    const file = this.files[0];
+    if(!file) return;
 
-  const container = document.getElementById("cardContainer");
-  container.innerHTML = "";
-
-  if (local.cards && local.cards.length > 0) {
-    local.cards.forEach(text => {
-      const card = document.createElement("div");
-      card.className = "subject-main-card";
-      card.innerHTML = `<button class="delete-card-btn" onclick="deleteCard(this)">-</button><div class="text-side fake-desc" contenteditable="false">${escapeHtml(text)}</div>`;
-      container.appendChild(card);
-    });
-  }
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/* ========== DATABASE SAVE ========== */
-
-function saveToDatabase() {
-  const cards = getAllContent();
-  const title = document.getElementById("subjectName").value.trim();
-
-  const params = new URLSearchParams();
-  params.append("title", title);
-  params.append("content", JSON.stringify(cards));
-  params.append("type", "subject_draft");
-
-  if (NOTE_ID) {
-    params.append("note_id", NOTE_ID);
-  }
-
-  return fetch('savenote.php', {
-    method: 'POST',
-    body: params
-  })
-  .then(res => res.json())
-  .then(data => {
-    clearLocalState();
-  })
-  .catch(err => {
-    console.error('Save failed:', err);
-    alert('Save failed!');
+    const reader = new FileReader();
+    reader.onload = function(e){
+      subjectImageData = e.target.result;
+      document.getElementById("subjectImagePreview").src = subjectImageData;
+    };
+    reader.readAsDataURL(file);
   });
 }
 
-/* ========== EVENT LISTENERS ========== */
+/* ========== EVENTS ========== */
+document.getElementById("editSaveBtn")
+  .addEventListener("click", toggleEditMode);
 
-window.addEventListener("load", restoreFromSession);
+document.querySelector(".back-btn")
+  .addEventListener("click", async function (e) {
+    e.preventDefault();
 
-document.getElementById("editSaveBtn").addEventListener("click", toggleEditMode);
+    if (isEditing) {
+      await toggleEditMode(); // save first
+    }
 
-document.getElementById("cardContainer").addEventListener("input", function(e) {
-  if (e.target.classList.contains("fake-desc") && isEditing) {
-    persistToSession();
-  }
-}, true);
-
-document.getElementById("subjectName").addEventListener("input", function() {
-  if (isEditing) persistToSession();
+    window.history.back(); // ✅ go to actual previous page
 });
 
-document.querySelector(".back-btn").addEventListener("click", async function (e) {
-  e.preventDefault();
-  if (isEditing) {
-    await toggleEditMode(); // save first
-  }
-  history.back();
-});
-
-function quiz() {
-  // your quiz logic
-}
-
+function quiz() {}
 </script>
 
 <script src="script.js"></script>

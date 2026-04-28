@@ -18,13 +18,13 @@ $student_id = $_SESSION['student_id'] ?? 0;
 
 <div class="container">
 
-<form method="POST" action="savingnote.php">
+<form onsubmit="return false;">
 
 <input type="hidden" name="note_id" value="">
 
 <!-- TOP -->
 <div class="top-bar">
-  <div class="back-btn" onclick="history.back()">←</div>
+  <div class="back-btn" onclick="saveAndBack()">←</div>
   <input type="text" name="title" class="title-input" placeholder="(Insert title here)">
 </div>
 
@@ -35,13 +35,13 @@ $student_id = $_SESSION['student_id'] ?? 0;
 
 <!-- BOTTOM -->
 <div class="bottom-bar">
-  <button onclick="noting()">✔</button>
-  <p>Save Note</p>
+  <button onclick="addnote()"><img src="addnote.png"></button>
+  <p>Add Subject</p>
 </div>
 
 </form>
 
 </div>
-
+<script src="script.js"></script>
 </body>
 </html>
