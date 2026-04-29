@@ -1,9 +1,3 @@
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-
-
 <?php
 session_start();
 include 'database.php';
@@ -162,7 +156,7 @@ if ($result->num_rows === 0) {
     <div class='draft-right'>
       <img src='" . (!empty($draft['subject_image']) 
     ? htmlspecialchars($draft['subject_image']) 
-    : "subject-icon.png") . "' class='draft-icon'>
+    : "file.png") . "' class='draft-icon'>
 
      <button onclick='togglePublish(" . $draft['note_id'] . ", \"" . $draft['type'] . "\")' class='btn-unpublish'>
   " . ($draft['type'] === 'subject' ? 'Unpublish' : 'Publish') . "
@@ -323,7 +317,7 @@ function hasRealContent() {
   const hasRealCards = cards.some(card => {
     const hasTitle = card.title && card.title.trim() !== "" && card.title !== "(Insert title here)";
     const hasDesc  = card.desc && card.desc.trim() !== "" && card.desc !== "(Insert desc here)";
-    const hasImage = card.img && !card.img.includes("addfile.png");
+    const hasImage = card.img && !card.img.includes("file.png");
 
     return hasTitle || hasDesc || hasImage;
   });

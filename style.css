@@ -608,6 +608,21 @@ button,.file-section button{
   box-shadow: 0 3px 6px rgba(0,0,0,0.1);
 }
 
+.subject-top .right {
+  flex-shrink: 0; /* stops it from stretching weirdly */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 40%; /* limit width */
+}
+
+.subject-image {
+  width: 100px;       /* fixed size */
+  height: 100px;
+  object-fit: cover;  /* prevents distortion */
+  border-radius: 50%; /* optional: circle look */
+}
+
 /* TOP CARD */
 .subject-top {
   background: #e9e9e9;
@@ -616,6 +631,7 @@ button,.file-section button{
   display: flex;
   justify-content: space-between;
   align-items: center;
+  overflow: hidden; 
 }
 
 .subject-top h2 {
@@ -940,7 +956,18 @@ button,.file-section button{
   display: flex;
   flex-direction: column;
   gap: 15px;
-  overflow: hidden;
+  overflow-y: auto;
+  padding-bottom: 50px;
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;   
+}
+
+.subject-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.add-btn-wrapper {
+  display: none;
 }
 
 /* TOP CARD */
@@ -1048,9 +1075,6 @@ button,.file-section button{
 }
 
 /* ENABLE CLICK ONLY IN EDIT */
-.card-image-label {
-  pointer-events: none;
-}
 
 .edit-mode .card-image-label {
   pointer-events: auto;
