@@ -2,92 +2,120 @@
 session_start();
 include 'database.php';
 
-$note_id = isset($_GET['note_id']) ? (int)$_GET['note_id'] : 0;
 $student_id = $_SESSION['student_id'] ?? 0;
+$id = isset($_GET['subject_id']) ? (int)$_GET['subject_id'] : 0;
 
-// Get the note/subject
-$stmt = $conn->prepare("SELECT * FROM notes WHERE note_id = ? AND type = 'subject'");
-$stmt->bind_param("i", $note_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$note = $result->fetch_assoc();
-
-if (!$note) {
-    echo "Subject not found.";
-    exit;
+if (!$id) {
+    exit("Subject not found.");
 }
 
-// Check if already in student's list
-$check = $conn->prepare("SELECT * FROM student_subjects WHERE student_id = ? AND subject_id = ?");
-$check->bind_param("ii", $student_id, $note_id);
-$check->execute();
-$alreadyAdded = $check->get_result()->num_rows > 0;
+$subject = null;
+$source_type = null;
 
-// Parse content
+/* 1. CHECK NOTES */
+$stmt = $conn->prepare("
+    SELECT note_id AS subject_id,
+           title AS subject_name,
+           content,
+           subject_image,
+           'notes' AS source_type
+    FROM notes
+    WHERE note_id = ?
+      AND type = 'subject'
+    LIMIT 1
+");
+$stmt->bind_param("i", $id);
+$stmt->execute();
+$subject = $stmt->get_result()->fetch_assoc();
+
+if ($subject) {
+    $source_type = 'notes';
+}
+
+/* 2. CHECK SUBJECTS */
+if (!$subject) {
+    $stmt = $conn->prepare("
+        SELECT subject_id,
+               subject_name,
+               description,
+               content,
+               subject_image,
+               'subjects' AS source_type
+        FROM subjects
+        WHERE subject_id = ?
+        LIMIT 1
+    ");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $subject = $stmt->get_result()->fetch_assoc();
+
+    if ($subject) {
+        $source_type = 'subjects';
+    }
+}
+
+/* 3. FAILSAFE */
+if (!$subject) {
+    exit("Subject not found.");
+}
+
+/* 4. BUILD DISPLAY CARDS (SAFE LOGIC) */
 $cards = [];
-if (!empty($note['content'])) {
-    $decoded = json_decode($note['content'], true);
-    $cards = is_array($decoded) ? $decoded : [$note['content']];
+
+/* CASE 1: JSON CONTENT EXISTS (notes or advanced subjects) */
+if (!empty($subject['content'])) {
+    $decoded = json_decode($subject['content'], true);
+
+    if (is_array($decoded)) {
+        foreach ($decoded as $c) {
+            $cards[] = [
+                'title' => $c['title'] ?? '',
+                'desc'  => $c['desc'] ?? '',
+                'img'   => $c['img'] ?? 'file.png'
+            ];
+        }
+    }
+}
+
+/* CASE 2: FALLBACK TO DESCRIPTION (YOUR CURRENT SYSTEM) */
+if (empty($cards)) {
+    $cards[] = [
+        'title' => $subject['subject_name'],
+        'desc'  => $subject['description'] ?? 'No description available.',
+        'img'   => $subject['subject_image'] ?? 'file.png'
+    ];
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($note['title']) ?></title>
+    <title><?= htmlspecialchars($subject['subject_name']) ?></title>
     <link rel="stylesheet" href="style.css">
-    <style>
-      .add-to-list-btn {
-        background: #F4A261;
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-size: 16px;
-        cursor: pointer;
-        margin-top: 10px;
-      }
-      .add-to-list-btn:disabled {
-        background: #888;
-        cursor: not-allowed;
-      }
-      .added-msg {
-        color: #2ecc71;
-        font-size: 14px;
-        margin-top: 5px;
-      }
-    </style>
 </head>
 <body>
 
 <div class="container">
 
-  <!-- NAV -->
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <input type="text" id="searchInput" placeholder="Search Topic">
-    <button class="back-btn" onclick="goBack()" style="background:none;border:none;padding:0;">
-      <img src="back.png" class="back-btn-img">
-    </button>
+    <img src="bell.png" class="bell">
   </nav>
 
-  <!-- SIDEBAR -->
   <div class="nav-links">
     <div class="top-icons">
       <img src="FAQIcon.png" class="help">
       <img src="back.png" class="back">
     </div>
-
     <label for="imageInput">
       <img id="preview" src="acc.png">
     </label>
-
     <input type="file" id="imageInput" hidden>
-
     <h3><?php echo $_SESSION['name'] ?? 'Guest'; ?></h3>
     <p><?php echo $_SESSION['email'] ?? 'No Email'; ?></p>
-
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
     <a href="#">Analytics</a>
@@ -98,40 +126,62 @@ if (!empty($note['content'])) {
 
   <div class="overlay"></div>
 
-<div class="subject-content">
+  <div class="subject-content">
 
-<div class="subject-top-card">
-  <div class="top-left">
-    <h2><?= htmlspecialchars($note['title']) ?></h2>
-    <p class="uploaded"><strong>Uploaded by:</strong><br><?= htmlspecialchars($note['uploader_name'] ?? 'Unknown') ?></p>
-
-    <?php if (!$alreadyAdded): ?>
-      <button onclick="addToMyList(<?= $note_id ?>)" class="add-to-list-btn" id="addBtn">
-        + Add to My List
-      </button>
-      <p class="added-msg" id="addedMsg" style="display:none;">Added to your list!</p>
-    <?php else: ?>
-      <button disabled class="add-to-list-btn">Already in List</button>
-    <?php endif; ?>
-  </div>
-
-  <div class="top-right">
-    <img src="chemistry.png" class="subject-icon">
-  </div>
-</div>
-
-<!-- CONTENT -->
-<?php foreach ($cards as $card): ?>
-    <div class="subject-main-card">
-      <div class="text-side">
-        <p><?= nl2br(htmlspecialchars($card)) ?></p>
+    <!-- Top Header Card - same as viewnote.php -->
+    <div class="subject-top-card">
+      <div class="top-left">
+        <h2><?= htmlspecialchars($subject['subject_name']) ?></h2>
+        <p class="uploaded">
+          <strong>Uploaded by:</strong><br>
+          <?= htmlspecialchars($_SESSION['name'] ?? 'Unknown') ?>
+        </p>
+      </div>
+      <div class="top-right">
+        <img src="<?= htmlspecialchars($subject['subject_image'] ?? 'file.png') ?>" class="subject-icon" onerror="this.src='file.png'">
       </div>
     </div>
-<?php endforeach; ?>
 
-</div>
+    <!-- User Created Content Cards - same structure as viewnote.php -->
+    <div id="cardContainer">
+    <?php if (!empty($cards)): ?>
+      <?php foreach ($cards as $card): 
+          $cardTitle = $card['title'] ?? '';
+          $cardDesc = $card['desc'] ?? '';
+          $cardImg = (!empty($card['img']) && $card['img'] !== 'file.png') ? $card['img'] : 'file.png';
+      ?>
+      <div class="subject-main-card">
+          <label class="card-image-label">
+            <img src="<?= htmlspecialchars($cardImg) ?>" class="card-image-preview" onerror="this.src='file.png'">
+          </label>
+          <input type="text" class="card-title" value="<?= htmlspecialchars($cardTitle) ?>" readonly>
+          <div class="fake-desc" contenteditable="false">
+            <?= nl2br(htmlspecialchars($cardDesc)) ?>
+          </div>
+      </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <div class="subject-main-card">
+          <div class="fake-desc" contenteditable="false">
+            <p>No content added yet.</p>
+          </div>
+      </div>
+    <?php endif; ?>
+    </div>
 
+  </div>
+
+  <!-- Bottom bar - same as viewnote.php but with Add to List button -->
   <div class="bottom-file-section">
+    <div class="item">
+      <button onclick="addToMyList(
+<?= (int)$subject['subject_id'] ?>,
+'<?= $source_type ?>'
+)" class="study-btn" id="addBtn">
+        + Add to My List
+      </button>
+      <p id="addedMsg" style="display:none; color: green;">Added!</p>
+    </div>
     <div class="item">
       <button onclick="goBack()" style="background:none;border:none;">
         <img src="back.png">
@@ -140,12 +190,22 @@ if (!empty($note['content'])) {
     </div>
   </div>
 
+</div>
+
 <script>
-function addToMyList(noteId) {
+function goBack() {
+  window.history.back();
+}
+
+function addToMyList(subjectId, sourceType) {
   fetch("add_to_list.php", {
     method: "POST",
-    headers: {"Content-Type": "application/x-www-form-urlencoded"},
-    body: "note_id=" + noteId
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body:
+      "subject_id=" + subjectId +
+      "&source_type=" + sourceType
   })
   .then(res => res.text())
   .then(data => {
@@ -164,6 +224,5 @@ function addToMyList(noteId) {
 }
 </script>
 
-<script src="script.js"></script>
 </body>
 </html>

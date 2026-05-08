@@ -7,7 +7,7 @@ if (!isset($_SESSION['student_id'])) {
 }
 
 $student_id = $_SESSION['student_id'];
-$note_id = $_POST['note_id'] ?? 0;
+$note_id = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
 $type = $_POST['type'] ?? '';
 
 if (!$note_id || !$type) {
@@ -15,49 +15,44 @@ if (!$note_id || !$type) {
 }
 
 /* ===============================
-   IF PUBLISHING
+   PUBLISH (ONLY MARK NOTE)
 ================================= */
 if ($type === "subject") {
 
-  // Get current note title
-  $get = $conn->prepare("SELECT title FROM notes WHERE note_id=? AND student_id=?");
+  // Get note data (optional validation)
+  $get = $conn->prepare("
+    SELECT title, content 
+    FROM notes 
+    WHERE note_id=? AND student_id=?
+  ");
   $get->bind_param("ii", $note_id, $student_id);
   $get->execute();
   $res = $get->get_result();
-  $row = $res->fetch_assoc();
+  $note = $res->fetch_assoc();
 
-  if ($row) {
-    $title = $row['title'];
-
-    // Instead of DELETE → downgrade other published ones
-    $reset = $conn->prepare("
-      UPDATE notes 
-      SET type='subject_draft' 
-      WHERE student_id=? 
-      AND title=? 
-      AND note_id != ?
-    ");
-    $reset->bind_param("isi", $student_id, $title, $note_id);
-    $reset->execute();
+  if (!$note) {
+    die("Note not found");
   }
 
-  //  Now publish THIS note
+  // Only update note type (NO INSERT INTO subjects anymore)
   $stmt = $conn->prepare("
     UPDATE notes 
-    SET type='subject' 
+    SET type='subject'
     WHERE note_id=? AND student_id=?
   ");
   $stmt->bind_param("ii", $note_id, $student_id);
   $stmt->execute();
 
+}
+
 /* ===============================
-   IF UNPUBLISHING
+   UNPUBLISH
 ================================= */
-} else {
+else {
 
   $stmt = $conn->prepare("
     UPDATE notes 
-    SET type='subject_draft' 
+    SET type='subject_draft'
     WHERE note_id=? AND student_id=?
   ");
   $stmt->bind_param("ii", $note_id, $student_id);

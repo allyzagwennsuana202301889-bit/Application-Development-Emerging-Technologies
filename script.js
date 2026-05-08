@@ -129,28 +129,26 @@ function goToSubject(id) {
   window.location.href = "subject.php?id=" + id;
 }
 
-function openFolder(id) {
-  window.location.href = "notes.php?folder_id=" + id;
+function goToCustomSubject(id, type = "subjects") {
+  window.location.href = "subject.php?id=" + id + "&type=" + type;
 }
 
-function viewSubject(id) {
-  window.location.href = "view_subject.php?subject_id=" + id;
+
+
+function viewSubject(id, source) {
+    window.location.href = "view_subject.php?subject_id=" + id + "&source=subjects";
+}
+
+
+
+function openFolder(id) {
+  window.location.href = "notes.php?folder_id=" + id;
 }
 
 function viewNote(id) {
   window.location.href = "view_note.php?note_id=" + id;
 }
 
-// MODAL CONTROLS (must be global)
-function openModal() {
-  const modal = document.getElementById("modal");
-  if (modal) modal.style.display = "flex";
-}
-
-function closeModal() {
-  const modal = document.getElementById("modal");
-  if (modal) modal.style.display = "none";
-}
 
 
 function readNote(id) {
@@ -274,3 +272,68 @@ function saveAndBack(){
 }
 
 
+
+/* ========== MODAL FUNCTIONS ========== */
+function openModal() {
+  const modal = document.getElementById('modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    loadModalSubjects(); // Fetch fresh data when opening
+  }
+}
+
+function closeModal() {
+  const modal = document.getElementById('modal');
+  if (modal) modal.style.display = 'none';
+}
+
+window.onclick = function(event) {
+  const modal = document.getElementById('modal');
+  if (event.target === modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function loadModalSubjects() {
+  const list = document.getElementById('modalSubjectList');
+  if (!list) return;
+
+  list.innerHTML = '<p>Loading...</p>';
+
+  fetch('fetch_modal_subjects.php')
+    .then(res => res.text())
+    .then(html => {
+      list.innerHTML = html;
+    })
+    .catch(err => {
+      console.error('Failed to load subjects:', err);
+      list.innerHTML = '<p>Error loading subjects.</p>';
+    });
+}
+
+/* ========== ATTACH CLICK HANDLERS TO MODAL ITEMS ========== */
+document.addEventListener("click", function (e) {
+  const item = e.target.closest(".subject-item");
+  if (!item) return;
+
+  const id = item.dataset.id;
+  const source = item.dataset.source;
+
+  if (source === "subject") {
+    window.location.href = "view_subject.php?subject_id=" + id;
+  } 
+  else if (source === "note") {
+    // optional: either ignore or redirect elsewhere
+    window.location.href = "view_subject.php?subject_id=" + id;
+  }
+});
+
+/* ========== SEARCH FILTER ========== */
+document.getElementById('search').addEventListener('input', function() {
+  const filter = this.value.toLowerCase();
+  const items = document.querySelectorAll('.subject-item');
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(filter) ? 'block' : 'none';
+  });
+});
