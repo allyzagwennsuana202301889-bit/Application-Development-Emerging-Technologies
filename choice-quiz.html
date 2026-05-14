@@ -1,14 +1,33 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Create Quiz</title>
+    <title>Choice Based Quiz</title>
     <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&family=Itim&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* QUIZ PAGE SPECIFIC STYLES */
+        /* CHOICE QUIZ PAGE SPECIFIC STYLES */
         
+        .quiz-content-scroll {
+            position: absolute;
+            top: 80px;
+            bottom: 90px;
+            left: 0;
+            right: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+        
+        .quiz-content-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Question Card */
         .quiz-question-card {
             background: #e9e9e9;
             border-radius: 12px;
@@ -57,88 +76,49 @@
             color: #999;
         }
         
-        .quiz-type-card {
+        /* Choices Card */
+        .quiz-choices-card {
             background: #e9e9e9;
             border-radius: 12px;
-            padding: 20px 16px;
+            padding: 16px;
             margin: 0 12px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 16px;
+            gap: 12px;
         }
         
-        .quiz-type-label {
-            font-size: 15px;
-            color: #333;
-            align-self: flex-start;
-            font-family: 'Inria Sans', sans-serif;
-        }
-        
-        .quiz-file-upload {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            padding: 12px;
-        }
-        
-        .quiz-file-icon {
-            width: 48px;
-            height: 48px;
-            color: #888;
-        }
-        
-        .quiz-file-icon svg {
+        .choice-input {
             width: 100%;
-            height: 100%;
-        }
-        
-        .quiz-file-label {
-            font-size: 13px;
-            color: #888;
-            font-family: 'Inria Sans', sans-serif;
-        }
-        
-        .quiz-type-btn {
-            width: 100%;
-            padding: 14px;
+            padding: 14px 16px;
             border: none;
             border-radius: 10px;
-            font-size: 17px;
+            background: #87CEEB;
+            font-size: 15px;
             font-family: 'Inria Sans', sans-serif;
+            color: #1a1a2e;
+            outline: none;
             cursor: pointer;
             transition: 0.2s;
-            background: #87CEEB;
-            color: #1a1a2e;
+            line-height: 1.4;
         }
         
-        .quiz-type-btn:hover {
+        .choice-input::placeholder {
+            color: #1a1a2e;
+            opacity: 0.9;
+        }
+        
+        .choice-input:hover {
             background: #6BB6FF;
         }
         
-        .quiz-type-btn.selected {
+        .choice-input.correct {
             background: #3B8BFF;
             color: white;
         }
         
-        /* Content scroll area for quiz page */
-        .quiz-content-scroll {
-            position: absolute;
-            top: 80px;
-            bottom: 90px;
-            left: 0;
-            right: 0;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            padding-bottom: 20px;
-        }
-        
-        .quiz-content-scroll::-webkit-scrollbar {
-            display: none;
+        .choice-input.correct::placeholder {
+            color: white;
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -189,25 +169,12 @@
                 <textarea class="quiz-question-input" placeholder="(insert question here)" id="questionInput" rows="3"></textarea>
             </div>
 
-            <!-- QUESTION TYPE CARD -->
-            <div class="quiz-type-card">
-                <p class="quiz-type-label">What kind of questionnaire you making?</p>
-                
-                <div class="quiz-file-upload" onclick="document.getElementById('fileInput').click()">
-                    <input type="file" id="fileInput" hidden>
-                    <div class="quiz-file-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="12" y1="18" x2="12" y2="12"/>
-                            <line x1="9" y1="15" x2="15" y2="15"/>
-                        </svg>
-                    </div>
-                    <span class="quiz-file-label">File</span>
-                </div>
-
-                <button class="quiz-type-btn" onclick="setType('choice', this)">choice based</button>
-                <button class="quiz-type-btn" onclick="setType('identification', this)">Identification</button>
+            <!-- CHOICES CARD -->
+            <div class="quiz-choices-card">
+                <input type="text" class="choice-input" placeholder="(Insert choices here)&#10;(Please highlight the correct answer)" id="choice1" onclick="selectCorrect(this)">
+                <input type="text" class="choice-input" placeholder="(Insert choices here)&#10;(Please highlight the correct answer)" id="choice2" onclick="selectCorrect(this)">
+                <input type="text" class="choice-input" placeholder="(Insert choices here)&#10;(Please highlight the correct answer)" id="choice3" onclick="selectCorrect(this)">
+                <input type="text" class="choice-input" placeholder="(Insert choices here)&#10;(Please highlight the correct answer)" id="choice4" onclick="selectCorrect(this)">
             </div>
 
         </div>
@@ -240,19 +207,22 @@
             document.getElementById('overlay').classList.toggle('active');
         }
         
-        // Question type selection
-        function setType(type, btn) {
-            document.querySelectorAll('.quiz-type-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            localStorage.setItem('quizType', type);
+        // Track correct answer
+        let correctChoice = null;
+        
+        // Select correct answer (highlight)
+        function selectCorrect(input) {
+            // Remove correct class from all
+            document.querySelectorAll('.choice-input').forEach(c => {
+                c.classList.remove('correct');
+            });
             
-            setTimeout(() => {
-                if (type === 'choice') {
-                    window.location.href = 'choice-quiz.html';
-                } else {
-                    window.location.href = 'identification-quiz.html';
-                }
-            }, 200);
+            // Add to clicked one
+            input.classList.add('correct');
+            correctChoice = input.id;
+            
+            // Store which is correct
+            localStorage.setItem('correctChoice', correctChoice);
         }
         
         // Add question
@@ -265,37 +235,68 @@
                 return;
             }
             
+            // Collect choices
+            const choices = [];
+            for (let i = 1; i <= 4; i++) {
+                const val = document.getElementById('choice' + i).value;
+                choices.push({
+                    text: val,
+                    correct: (document.getElementById('choice' + i).classList.contains('correct'))
+                });
+            }
+            
+            // Check if at least one choice is marked correct
+            const hasCorrect = choices.some(c => c.correct);
+            if (!hasCorrect) {
+                alert('Please highlight the correct answer by clicking on it!');
+                return;
+            }
+            
+            // Check if all choices filled
+            const allFilled = choices.every(c => c.text.trim() !== '');
+            if (!allFilled) {
+                alert('Please fill in all 4 choices!');
+                return;
+            }
+            
             let questions = JSON.parse(localStorage.getItem('quizQuestions') || '[]');
             questions.push({
                 id: Date.now(),
                 subject: subject,
                 question: question,
-                type: localStorage.getItem('quizType') || 'choice'
+                type: 'choice',
+                choices: choices
             });
             localStorage.setItem('quizQuestions', JSON.stringify(questions));
             
+            // Clear inputs
             document.getElementById('questionInput').value = '';
             document.getElementById('questionNumInput').value = '';
+            document.querySelectorAll('.choice-input').forEach(c => {
+                c.value = '';
+                c.classList.remove('correct');
+            });
+            correctChoice = null;
+            
             alert('Question added!');
         }
         
         // Upload trigger
         function triggerUpload() {
-            document.getElementById('fileInput').click();
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf,.doc,.docx,.txt,image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) alert('Uploaded: ' + file.name);
+            };
+            input.click();
         }
         
         // Go back
         function goBack() {
-       window.location.href = 'addsubject.php';
+            window.location.href = 'flashcards.html';
         }
-        
-        // File input handler
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                alert('File selected: ' + file.name);
-            }
-        });
         
         // Profile image
         document.getElementById('imageInput').addEventListener('change', function(e) {
@@ -318,4 +319,3 @@
     </script>
 </body>
 </html>
-

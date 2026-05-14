@@ -155,8 +155,8 @@ if (isset($_GET['note_id'])) {
       <p>Add</p>
     </div>
     <div class="item">
-      <img src="flashcards.png">
-      <p>Flash Cards</p>
+         <button onclick="quiz()"><img src="flashcards.png"></button>
+        <p>Flash Cards</p>
     </div>
   </div>
 

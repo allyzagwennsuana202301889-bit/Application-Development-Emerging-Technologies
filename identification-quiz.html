@@ -3,12 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Create Quiz</title>
+    <title>Identification Quiz</title>
     <link href="https://fonts.googleapis.com/css2?family=Inria+Sans:wght@400&family=Itim&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* QUIZ PAGE SPECIFIC STYLES */
+        /* IDENTIFICATION QUIZ PAGE SPECIFIC STYLES */
         
+        .quiz-content-scroll {
+            position: absolute;
+            top: 80px;
+            bottom: 90px;
+            left: 0;
+            right: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+        
+        .quiz-content-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Question Card */
         .quiz-question-card {
             background: #e9e9e9;
             border-radius: 12px;
@@ -57,7 +75,8 @@
             color: #999;
         }
         
-        .quiz-type-card {
+        /* Answer Card */
+        .quiz-answer-card {
             background: #e9e9e9;
             border-radius: 12px;
             padding: 20px 16px;
@@ -68,77 +87,33 @@
             gap: 16px;
         }
         
-        .quiz-type-label {
+        .answer-label {
             font-size: 15px;
             color: #333;
             align-self: flex-start;
             font-family: 'Inria Sans', sans-serif;
         }
         
-        .quiz-file-upload {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            padding: 12px;
-        }
-        
-        .quiz-file-icon {
-            width: 48px;
-            height: 48px;
-            color: #888;
-        }
-        
-        .quiz-file-icon svg {
+        .answer-input {
             width: 100%;
-            height: 100%;
-        }
-        
-        .quiz-file-label {
-            font-size: 13px;
-            color: #888;
-            font-family: 'Inria Sans', sans-serif;
-        }
-        
-        .quiz-type-btn {
-            width: 100%;
-            padding: 14px;
+            padding: 14px 16px;
             border: none;
             border-radius: 10px;
-            font-size: 17px;
-            font-family: 'Inria Sans', sans-serif;
-            cursor: pointer;
-            transition: 0.2s;
             background: #87CEEB;
+            font-size: 15px;
+            font-family: 'Inria Sans', sans-serif;
             color: #1a1a2e;
+            outline: none;
+            line-height: 1.4;
         }
         
-        .quiz-type-btn:hover {
+        .answer-input::placeholder {
+            color: #1a1a2e;
+            opacity: 0.9;
+        }
+        
+        .answer-input:focus {
             background: #6BB6FF;
-        }
-        
-        .quiz-type-btn.selected {
-            background: #3B8BFF;
-            color: white;
-        }
-        
-        /* Content scroll area for quiz page */
-        .quiz-content-scroll {
-            position: absolute;
-            top: 80px;
-            bottom: 90px;
-            left: 0;
-            right: 0;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            padding-bottom: 20px;
-        }
-        
-        .quiz-content-scroll::-webkit-scrollbar {
-            display: none;
         }
     </style>
 </head>
@@ -189,25 +164,10 @@
                 <textarea class="quiz-question-input" placeholder="(insert question here)" id="questionInput" rows="3"></textarea>
             </div>
 
-            <!-- QUESTION TYPE CARD -->
-            <div class="quiz-type-card">
-                <p class="quiz-type-label">What kind of questionnaire you making?</p>
-                
-                <div class="quiz-file-upload" onclick="document.getElementById('fileInput').click()">
-                    <input type="file" id="fileInput" hidden>
-                    <div class="quiz-file-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="12" y1="18" x2="12" y2="12"/>
-                            <line x1="9" y1="15" x2="15" y2="15"/>
-                        </svg>
-                    </div>
-                    <span class="quiz-file-label">File</span>
-                </div>
-
-                <button class="quiz-type-btn" onclick="setType('choice', this)">choice based</button>
-                <button class="quiz-type-btn" onclick="setType('identification', this)">Identification</button>
+            <!-- ANSWER CARD -->
+            <div class="quiz-answer-card">
+                <p class="answer-label">What is the correct answer?</p>
+                <input type="text" class="answer-input" placeholder="(Type the correct answer here)" id="answerInput">
             </div>
 
         </div>
@@ -240,28 +200,19 @@
             document.getElementById('overlay').classList.toggle('active');
         }
         
-        // Question type selection
-        function setType(type, btn) {
-            document.querySelectorAll('.quiz-type-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            localStorage.setItem('quizType', type);
-            
-            setTimeout(() => {
-                if (type === 'choice') {
-                    window.location.href = 'choice-quiz.html';
-                } else {
-                    window.location.href = 'identification-quiz.html';
-                }
-            }, 200);
-        }
-        
         // Add question
         function addQuestion() {
             const subject = document.getElementById('subjectInput').value;
             const question = document.getElementById('questionInput').value;
+            const answer = document.getElementById('answerInput').value;
             
             if (!subject || !question) {
                 alert('Please fill in subject and question first!');
+                return;
+            }
+            
+            if (!answer) {
+                alert('Please type the correct answer!');
                 return;
             }
             
@@ -270,32 +221,35 @@
                 id: Date.now(),
                 subject: subject,
                 question: question,
-                type: localStorage.getItem('quizType') || 'choice'
+                type: 'identification',
+                answer: answer
             });
             localStorage.setItem('quizQuestions', JSON.stringify(questions));
             
+            // Clear inputs
             document.getElementById('questionInput').value = '';
             document.getElementById('questionNumInput').value = '';
+            document.getElementById('answerInput').value = '';
+            
             alert('Question added!');
         }
         
         // Upload trigger
         function triggerUpload() {
-            document.getElementById('fileInput').click();
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf,.doc,.docx,.txt,image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) alert('Uploaded: ' + file.name);
+            };
+            input.click();
         }
         
         // Go back
         function goBack() {
-       window.location.href = 'addsubject.php';
+            window.location.href = 'flashcards.html';
         }
-        
-        // File input handler
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                alert('File selected: ' + file.name);
-            }
-        });
         
         // Profile image
         document.getElementById('imageInput').addEventListener('change', function(e) {
