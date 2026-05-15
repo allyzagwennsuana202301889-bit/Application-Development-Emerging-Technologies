@@ -23,6 +23,42 @@ if (!$note) {
 
 $subject_title = $note['title'] ?? 'Untitled';
 
+// Helper function to handle image uploads
+function handleImageUpload($fileKey, $existingImage = '') {
+    if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
+        $uploadDir = 'uploads/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Validate file type
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $_FILES[$fileKey]['tmp_name']);
+        finfo_close($finfo);
+        
+        if (!in_array($mimeType, $allowedTypes)) {
+            return ['error' => 'Invalid image type. Only JPEG, PNG, GIF, WEBP allowed.'];
+        }
+        
+        // Validate file size (max 5MB)
+        if ($_FILES[$fileKey]['size'] > 5 * 1024 * 1024) {
+            return ['error' => 'Image too large. Max 5MB.'];
+        }
+        
+        $fileExt = pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION);
+        $fileName = uniqid('img_') . '.' . $fileExt;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $targetPath)) {
+            return ['path' => $targetPath];
+        } else {
+            return ['error' => 'Failed to move uploaded file.'];
+        }
+    }
+    return ['path' => $existingImage];
+}
+
 // Handle AJAX save requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -33,13 +69,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $question_type = $_POST['question_type'];
         $correct_answer = $_POST['correct_answer'] ?? '';
         $choices = $_POST['choices'] ?? '[]';
-        $question_image = $_POST['question_image'] ?? '';
+        $existing_image = $_POST['question_image'] ?? '';
+        
+        // Handle image upload if file provided
+        $imageResult = handleImageUpload('question_image_file', $existing_image);
+        if (isset($imageResult['error'])) {
+            echo json_encode(['success' => false, 'error' => $imageResult['error']]);
+            exit;
+        }
+        $question_image = $imageResult['path'];
 
         $upd = $conn->prepare("UPDATE quiz_questions SET question = ?, question_type = ?, correct_answer = ?, choices = ?, question_image = ? WHERE question_id = ? AND quiz_id = ?");
         $upd->bind_param("sssssii", $question, $question_type, $correct_answer, $choices, $question_image, $question_id, $note_id);
 
         if ($upd->execute()) {
-            echo json_encode(['success' => true]);
+            echo json_encode(['success' => true, 'question_image' => $question_image]);
         } else {
             echo json_encode(['success' => false, 'error' => $conn->error]);
         }
@@ -67,7 +111,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $question_type = $_POST['question_type'];
         $correct_answer = $_POST['correct_answer'] ?? '';
         $choices = $_POST['choices'] ?? '[]';
-        $question_image = $_POST['question_image'] ?? '';
+        $existing_image = $_POST['question_image'] ?? '';
+        
+        // Handle image upload if file provided
+        $imageResult = handleImageUpload('question_image_file', $existing_image);
+        if (isset($imageResult['error'])) {
+            echo json_encode(['success' => false, 'error' => $imageResult['error']]);
+            exit;
+        }
+        $question_image = $imageResult['path'];
 
         $ord = $conn->query("SELECT MAX(question_order) as max_ord FROM quiz_questions WHERE quiz_id = $note_id");
         $order = ($ord->fetch_assoc()['max_ord'] ?? 0) + 1;
@@ -77,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($ins->execute()) {
             $new_id = $ins->insert_id;
-            echo json_encode(['success' => true, 'question_id' => $new_id, 'question_order' => $order]);
+            echo json_encode(['success' => true, 'question_id' => $new_id, 'question_order' => $order, 'question_image' => $question_image]);
         } else {
             echo json_encode(['success' => false, 'error' => $conn->error]);
         }
@@ -725,7 +777,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
             <div class="nav-right">
                 <img src="bell.png" class="bell" alt="Notifications">
-                <img src="back.png" class="back-btn-icon" onclick="readNote(NOTE_ID)" alt="Back">
+                <img src="back.png" class="back-btn-icon" onclick="goBack()" alt="Back">
             </div>
         </nav>
 
@@ -767,11 +819,9 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 <img src="add.png" alt="Add">
                 <p>Add</p>
             </div>
-            <div class="item">
-                <button type="button" onclick="upload()">
-                 <img src="upload.png">
-      </button>
-      <p>Upload</p>
+            <div class="item" onclick="upload()">
+                <img src="uploaded.png" alt="Back">
+                <p>Uploads</p>
             </div>
         </div>
 
@@ -1084,6 +1134,12 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         // ===== ADD NEW QUESTION =====
         function addNewQuestion() {
+            // BUG FIX #1: Must be in edit mode to add new questions
+            if (!isEditMode) {
+                showToast('Enter edit mode first');
+                return;
+            }
+            
             if (isAdding) {
                 showToast('Finish adding current question first');
                 return;
@@ -1170,12 +1226,20 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 }
             }
 
+            // BUG FIX #2: Send actual file instead of base64 string
             const formData = new FormData();
             formData.append('action', 'add_flashcard');
             formData.append('question', question);
             formData.append('question_type', morphType);
             formData.append('correct_answer', correctAnswer);
             formData.append('choices', JSON.stringify(choices));
+            
+            // Send the actual file if one was selected
+            const fileInput = document.getElementById(`qImgFile-${currentIndex}`);
+            if (fileInput && fileInput.files[0]) {
+                formData.append('question_image_file', fileInput.files[0]);
+            }
+            // Send base64 as fallback for existing images (not from file input)
             formData.append('question_image', questionImage);
 
             fetch('readflashcards.php?note_id=' + NOTE_ID, {
@@ -1192,7 +1256,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                         correct_answer: correctAnswer,
                         choices: choices,
                         question_order: data.question_order,
-                        question_image: questionImage,
+                        question_image: data.question_image || questionImage,
                         isNew: false
                     };
                     isAdding = false;
@@ -1232,6 +1296,11 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 showToast('Edit mode ON - tap image to replace, tap choice to set correct');
 
             } else {
+                // If adding, submit the new card instead of saving current
+                if (isAdding) {
+                    submitNewCard();
+                    return;
+                }
                 saveCurrentCard();
             }
         }
@@ -1270,6 +1339,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 correctAnswer = ansField?.value || '';
             }
 
+            // BUG FIX #2: Send actual file for updates too
             const formData = new FormData();
             formData.append('action', 'update_flashcard');
             formData.append('question_id', qId);
@@ -1277,6 +1347,12 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             formData.append('question_type', qType);
             formData.append('correct_answer', correctAnswer);
             formData.append('choices', JSON.stringify(choices));
+            
+            // Send the actual file if one was selected
+            const fileInput = document.getElementById(`qImgFile-${currentIndex}`);
+            if (fileInput && fileInput.files[0]) {
+                formData.append('question_image_file', fileInput.files[0]);
+            }
             formData.append('question_image', questionImage);
 
             fetch('readflashcards.php?note_id=' + NOTE_ID, {
@@ -1288,7 +1364,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 if (data.success) {
                     cards[currentIndex].question = qText;
                     cards[currentIndex].correct_answer = correctAnswer;
-                    cards[currentIndex].question_image = questionImage;
+                    cards[currentIndex].question_image = data.question_image || questionImage;
                     if (qType === 'choice') cards[currentIndex].choices = choices;
 
                     isEditMode = false;
