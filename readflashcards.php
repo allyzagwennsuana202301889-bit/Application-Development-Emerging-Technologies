@@ -23,40 +23,39 @@ if (!$note) {
 
 $subject_title = $note['title'] ?? 'Untitled';
 
-// Helper function to handle image uploads
-function handleImageUpload($fileKey, $existingImage = '') {
-    if (isset($_FILES[$fileKey]) && $_FILES[$fileKey]['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = 'uploads/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-        
-        // Validate file type
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mimeType = finfo_file($finfo, $_FILES[$fileKey]['tmp_name']);
-        finfo_close($finfo);
-        
-        if (!in_array($mimeType, $allowedTypes)) {
-            return ['error' => 'Invalid image type. Only JPEG, PNG, GIF, WEBP allowed.'];
-        }
-        
-        // Validate file size (max 5MB)
-        if ($_FILES[$fileKey]['size'] > 5 * 1024 * 1024) {
-            return ['error' => 'Image too large. Max 5MB.'];
-        }
-        
-        $fileExt = pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION);
-        $fileName = uniqid('img_') . '.' . $fileExt;
-        $targetPath = $uploadDir . $fileName;
-        
-        if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $targetPath)) {
-            return ['path' => $targetPath];
-        } else {
-            return ['error' => 'Failed to move uploaded file.'];
-        }
+// Helper function to handle base64 image data
+function handleBase64Image($base64Data, $existingImage = '') {
+    // If no new base64 data provided, keep existing
+    if (empty($base64Data) || $base64Data === $existingImage) {
+        return ['path' => $existingImage];
     }
-    return ['path' => $existingImage];
+    
+    // Validate it's a base64 image
+    if (!preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
+        return ['error' => 'Invalid image data format.'];
+    }
+    
+    $imageType = strtolower($matches[1]);
+    $allowedTypes = ['jpeg', 'jpg', 'png', 'gif', 'webp'];
+    
+    if (!in_array($imageType, $allowedTypes)) {
+        return ['error' => 'Invalid image type. Only JPEG, PNG, GIF, WEBP allowed.'];
+    }
+    
+    // Decode base64
+    $base64String = preg_replace('/^data:image\/\w+;base64,/', '', $base64Data);
+    $imageData = base64_decode($base64String);
+    
+    if ($imageData === false) {
+        return ['error' => 'Failed to decode image data.'];
+    }
+    
+    // Check size (max 5MB decoded)
+    if (strlen($imageData) > 5 * 1024 * 1024) {
+        return ['error' => 'Image too large. Max 5MB.'];
+    }
+    
+    return ['path' => $base64Data];
 }
 
 // Handle AJAX save requests
@@ -70,9 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $correct_answer = $_POST['correct_answer'] ?? '';
         $choices = $_POST['choices'] ?? '[]';
         $existing_image = $_POST['question_image'] ?? '';
+        $base64_image = $_POST['question_image_base64'] ?? '';
         
-        // Handle image upload if file provided
-        $imageResult = handleImageUpload('question_image_file', $existing_image);
+        // Handle base64 image
+        $imageResult = handleBase64Image($base64_image, $existing_image);
         if (isset($imageResult['error'])) {
             echo json_encode(['success' => false, 'error' => $imageResult['error']]);
             exit;
@@ -112,9 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $correct_answer = $_POST['correct_answer'] ?? '';
         $choices = $_POST['choices'] ?? '[]';
         $existing_image = $_POST['question_image'] ?? '';
+        $base64_image = $_POST['question_image_base64'] ?? '';
         
-        // Handle image upload if file provided
-        $imageResult = handleImageUpload('question_image_file', $existing_image);
+        // Handle base64 image
+        $imageResult = handleBase64Image($base64_image, $existing_image);
         if (isset($imageResult['error'])) {
             echo json_encode(['success' => false, 'error' => $imageResult['error']]);
             exit;
@@ -802,8 +803,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
-
-
         <div class="card-deck-wrapper" id="cardDeckWrapper">
             <div class="cards-track" id="cardsTrack"></div>
         </div>
@@ -992,7 +991,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                             <input type="text" class="choice-field" placeholder="Choice C" data-choice-idx="2" id="newCh2">
                             <input type="text" class="choice-field" placeholder="Choice D" data-choice-idx="3" id="newCh3">
                             <p class="choice-hint">Tap the correct answer to highlight it</p>
-                            <!-- Save handled by bottom nav Save button -->
                         </div>
 
                         <div class="answer-state hidden" id="newAnswerState">
@@ -1002,7 +1000,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                             </div>
                             <p class="answer-label">What is the correct answer?</p>
                             <input type="text" class="answer-field" placeholder="(Type the correct answer here)" id="newAnsField">
-                            <!-- Save handled by bottom nav Save button -->
                         </div>
                     </div>
                 </div>
@@ -1072,7 +1069,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             window.location.href = 'viewnote.php?note_id=' + NOTE_ID;
         }
 
-        // ===== IMAGE HANDLING =====
+        // ===== IMAGE HANDLING (BASE64) =====
         function pickImage(index) {
             if (!isEditMode && !isAdding) return;
             document.getElementById(`qImgFile-${index}`).click();
@@ -1085,6 +1082,12 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 showToast('Please select an image file');
                 return;
             }
+            // Check file size before reading (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image too large. Max 5MB.');
+                input.value = '';
+                return;
+            }
             const reader = new FileReader();
             reader.onload = function(e) {
                 const wrap = document.getElementById(`qImgWrap-${index}`);
@@ -1092,7 +1095,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 const fileIconArea = document.getElementById(`fileIconArea-${index}`);
 
                 if (!img) {
-                    // Create img element if it doesn't exist
                     img = document.createElement('img');
                     img.id = `qImgView-${index}`;
                     img.alt = 'Question image';
@@ -1134,7 +1136,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         // ===== ADD NEW QUESTION =====
         function addNewQuestion() {
-            // BUG FIX #1: Must be in edit mode to add new questions
             if (!isEditMode) {
                 showToast('Enter edit mode first');
                 return;
@@ -1226,21 +1227,14 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 }
             }
 
-            // BUG FIX #2: Send actual file instead of base64 string
             const formData = new FormData();
             formData.append('action', 'add_flashcard');
             formData.append('question', question);
             formData.append('question_type', morphType);
             formData.append('correct_answer', correctAnswer);
             formData.append('choices', JSON.stringify(choices));
-            
-            // Send the actual file if one was selected
-            const fileInput = document.getElementById(`qImgFile-${currentIndex}`);
-            if (fileInput && fileInput.files[0]) {
-                formData.append('question_image_file', fileInput.files[0]);
-            }
-            // Send base64 as fallback for existing images (not from file input)
-            formData.append('question_image', questionImage);
+            formData.append('question_image', ''); // No file path needed
+            formData.append('question_image_base64', questionImage); // Send base64 data
 
             fetch('readflashcards.php?note_id=' + NOTE_ID, {
                 method: 'POST',
@@ -1296,7 +1290,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 showToast('Edit mode ON - tap image to replace, tap choice to set correct');
 
             } else {
-                // If adding, submit the new card instead of saving current
                 if (isAdding) {
                     submitNewCard();
                     return;
@@ -1339,7 +1332,6 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 correctAnswer = ansField?.value || '';
             }
 
-            // BUG FIX #2: Send actual file for updates too
             const formData = new FormData();
             formData.append('action', 'update_flashcard');
             formData.append('question_id', qId);
@@ -1347,13 +1339,8 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             formData.append('question_type', qType);
             formData.append('correct_answer', correctAnswer);
             formData.append('choices', JSON.stringify(choices));
-            
-            // Send the actual file if one was selected
-            const fileInput = document.getElementById(`qImgFile-${currentIndex}`);
-            if (fileInput && fileInput.files[0]) {
-                formData.append('question_image_file', fileInput.files[0]);
-            }
-            formData.append('question_image', questionImage);
+            formData.append('question_image', ''); // No file path needed
+            formData.append('question_image_base64', questionImage); // Send base64 data
 
             fetch('readflashcards.php?note_id=' + NOTE_ID, {
                 method: 'POST',
