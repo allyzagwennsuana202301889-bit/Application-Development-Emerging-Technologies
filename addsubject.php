@@ -52,17 +52,62 @@ if (isset($_GET['note_id'])) {
     }
     .delete-card-btn:hover { background: #cc0000; }
 
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #333;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 300;
+      opacity: 0;
+      transition: 0.3s;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .flashcards-badge {
+      position: fixed;
+      top: 70px;
+      right: 16px;
+      background: #87CEEB;
+      color: #1a1a2e;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: 'Inria Sans', sans-serif;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .flashcards-badge.show { display: flex; }
+    .flashcards-badge img {
+      width: 16px; height: 16px;
+    }
   </style>
 </head>
 
 <body>
+
+<div class="toast" id="toast"></div>
+<div class="flashcards-badge" id="flashcardsBadge">
+  <img src="flashcards.png"> <span id="flashcardsCount">0 flashcards</span>
+</div>
 
 <div class="container">
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <img src="bell.png" class="bells">
-    <button class="back-btn">
+    <button class="back-btn" id="backBtn">
       <img src="back.png">
     </button> 
   </nav>
@@ -95,9 +140,9 @@ if (isset($_GET['note_id'])) {
       <p>Uploaded by:<br><?php echo $_SESSION['name'] ?? 'Guest'; ?></p>
     </div>
     <div class="right">
-      
+
       <label class="subject-image-label">
-        
+
         <img id="subjectImagePreview"
              src="<?= !empty($note['subject_image']) ? htmlspecialchars($note['subject_image']) : 'file.png' ?>"
              class="subject-image">
@@ -155,9 +200,10 @@ if (isset($_GET['note_id'])) {
       <p>Add</p>
     </div>
     <div class="item">
-         <button onclick="quiz()"><img src="flashcards.png"></button>
+         <button onclick="goToFlashcards()"><img src="flashcards.png"></button>
         <p>Flash Cards</p>
     </div>
+
   </div>
 
 </div>
@@ -177,6 +223,14 @@ function setLocalState(state) {
 
 function clearLocalState() {
   sessionStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem('subjectDraft_new');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 function hasRealContent() {
@@ -217,21 +271,16 @@ function deleteCard(btn) {
   }
 }
 
-/* ========== GET CONTENT - READS data-img INSTEAD OF .src ========== */
 function getAllContent() {
   const cards = document.querySelectorAll(".subject-main-card");
   let data = [];
 
   cards.forEach(card => {
     const preview = card.querySelector(".card-image-preview");
-    // Read from data-img attribute, NOT .src (which gives absolute URL)
     let img = preview?.getAttribute("data-img") || "file.png";
-    
-    // Normalize if it's somehow still an absolute URL to file.png
     if (img.includes('file.png') && !img.startsWith('data:')) {
       img = 'file.png';
     }
-
     data.push({
       title: card.querySelector(".card-title")?.value || "",
       desc: card.querySelector(".fake-desc")?.innerText || "",
@@ -251,7 +300,17 @@ function persistToSession() {
 }
 
 function restoreFromSession() {
-  const local = getLocalState();
+  let local = getLocalState();
+
+  if (!local && NOTE_ID) {
+    const legacyRaw = sessionStorage.getItem('subjectDraft_new');
+    if (legacyRaw) {
+      local = JSON.parse(legacyRaw);
+      setLocalState(local);
+      sessionStorage.removeItem('subjectDraft_new');
+    }
+  }
+
   if (!local) return;
 
   if (local.title) {
@@ -324,10 +383,87 @@ function saveToDatabase() {
   .then(data => {
     if (!NOTE_ID && data.note_id) {
       NOTE_ID = data.note_id;
+      const oldKey = 'subjectDraft_new';
+      const newKey = 'subjectDraft_' + NOTE_ID;
+      const oldData = sessionStorage.getItem(oldKey);
+      if (oldData) {
+        sessionStorage.setItem(newKey, oldData);
+        sessionStorage.removeItem(oldKey);
+      }
     }
     clearLocalState();
+    return data;
   })
-  .catch(err => console.error('Save failed:', err));
+  .catch(err => {
+    console.error('Save failed:', err);
+    throw err;
+  });
+}
+
+// ============================================
+// FIX: Replaced savequiz.php with autosavequiz.php
+// ============================================
+async function saveFlashcardsFromSession() {
+  const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+  const flashDataRaw = sessionStorage.getItem(flashKey);
+
+  if (!flashDataRaw) return;
+
+  try {
+    const flashData = JSON.parse(flashDataRaw);
+    if (!flashData.cards || flashData.cards.length === 0) return;
+
+    let targetNoteId = NOTE_ID;
+    if (!targetNoteId) {
+      const subjectData = await saveToDatabase();
+      if (subjectData && subjectData.note_id) {
+        targetNoteId = subjectData.note_id;
+        NOTE_ID = targetNoteId;
+      } else {
+        console.error('Could not save subject to get note_id');
+        return;
+      }
+    }
+
+    // FIX: Build JSON payload for autosavequiz.php
+    const payload = [];
+    for (let i = 0; i < flashData.cards.length; i++) {
+      const c = flashData.cards[i];
+      if (!c.question || !c.question.trim()) continue;
+      if (!c.question_type) continue;
+
+      payload.push({
+        note_id: targetNoteId,
+        subject: document.getElementById("subjectName").value.trim() || flashData.subject || 'Untitled',
+        question: c.question,
+        type: c.question_type,
+        question_order: i,
+        choices: c.question_type === 'choice' ? JSON.stringify(c.choices || []) : null,
+        answer: c.question_type === 'identification' ? (c.correct_answer || '') : null,
+        question_image: c.question_image || null
+      });
+    }
+
+    if (payload.length === 0) return;
+
+    // FIX: Use autosavequiz.php with JSON Content-Type
+    const res = await fetch('autosavequiz.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questions: payload })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      showToast(`${data.saved} flashcards saved!`);
+    }
+
+    sessionStorage.removeItem(flashKey);
+    sessionStorage.removeItem('flashcardsData_new');
+
+  } catch (err) {
+    console.error('Error processing flashcards:', err);
+  }
 }
 
 document.getElementById("cardContainer").addEventListener("input", function(e) {
@@ -338,10 +474,19 @@ document.getElementById("cardContainer").addEventListener("input", function(e) {
 
 document.getElementById("subjectName").addEventListener("input", persistToSession);
 
-document.querySelector(".back-btn").addEventListener("click", async function(e) {
+document.getElementById("backBtn").addEventListener("click", async function(e) {
   e.preventDefault();
-  await saveToDatabase();
-  history.back();
+  showToast('Saving...');
+
+  try {
+    await saveToDatabase();
+    await saveFlashcardsFromSession();
+    window.location.href = "notes.php";
+  } catch (err) {
+    console.error('Save error:', err);
+    showToast('Save failed!');
+    window.location.href = "notes.php";
+  }
 });
 
 function attachImageHandler(card) {
@@ -382,7 +527,68 @@ window.addEventListener("load", () => {
   document.querySelectorAll(".subject-main-card").forEach(card => {
     attachImageHandler(card);
   });
+  checkForFlashcardsData();
 });
+
+function checkForFlashcardsData() {
+  const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+  const flashDataRaw = sessionStorage.getItem(flashKey);
+
+  if (flashDataRaw) {
+    try {
+      const flashData = JSON.parse(flashDataRaw);
+      if (flashData.cards && flashData.cards.length > 0) {
+        const badge = document.getElementById('flashcardsBadge');
+        const count = document.getElementById('flashcardsCount');
+        count.textContent = `${flashData.cards.length} flashcard${flashData.cards.length !== 1 ? 's' : ''} ready`;
+        badge.classList.add('show');
+      }
+    } catch (e) {
+      console.error('Error parsing flashcards data:', e);
+    }
+  }
+}
+
+function goToFlashcards() {
+  const title = document.getElementById("subjectName").value.trim();
+
+  if (!title) {
+    alert("Please enter a subject name first!");
+    return;
+  }
+
+  persistToSession();
+
+  if (!NOTE_ID) {
+    saveToDatabase().then(data => {
+      if (data && data.note_id) {
+        NOTE_ID = data.note_id;
+        const params = new URLSearchParams();
+        params.append("subject", title);
+        params.append("note_id", NOTE_ID);
+        window.location.href = "flashcards.php?" + params.toString();
+      }
+    }).catch(err => {
+      console.error('Failed to save subject:', err);
+      const params = new URLSearchParams();
+      params.append("subject", title);
+      window.location.href = "flashcards.php?" + params.toString();
+    });
+  } else {
+    const params = new URLSearchParams();
+    params.append("subject", title);
+    params.append("note_id", NOTE_ID);
+    window.location.href = "flashcards.php?" + params.toString();
+  }
+}
+
+function goToQuizzes() {
+  const title = document.getElementById("subjectName").value.trim();
+  const params = new URLSearchParams();
+  if (title) params.append("subject", title);
+  if (NOTE_ID) params.append("note_id", NOTE_ID);
+  window.location.href = "quiz-review.php?" + params.toString();
+}
 </script>
 <script src="script.js"></script>
 </body>

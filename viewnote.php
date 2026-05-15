@@ -45,7 +45,7 @@ if (!empty($note['content'])) {
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <input type="text" id="searchInput" placeholder="Search Topic">
-    <button class="back-btn" style="background:none;border:none;padding:0;">
+    <button class="back-btn">
       <img src="back.png" class="back-btn-img">
     </button>
   </nav>
@@ -128,7 +128,7 @@ if (!empty($note['content'])) {
       <p>Add</p>
     </div>
     <div class="item">
-      <button onclick="quiz()" style="background:none;border:none;"><img src="flashcards.png"></button>
+      <button onclick="quizes()" style="background:none;border:none;"><img src="flashcards.png"></button>
       <p>Flash Cards</p>
     </div>
   </div>
@@ -286,10 +286,12 @@ document.getElementById("editSaveBtn").addEventListener("click", toggleEditMode)
 document.querySelector(".back-btn").addEventListener("click", async function(e) {
   e.preventDefault();
   if (isEditing) await toggleEditMode();
-  window.history.back();
+  window.location.href = "Uploaded notes.php";
 });
 
-function quiz() {}
+function quizes() {
+  window.location.href = "readflashcards.php?note_id=" + NOTE_ID;
+}
 </script>
 <script src="script.js"></script>
 </body>

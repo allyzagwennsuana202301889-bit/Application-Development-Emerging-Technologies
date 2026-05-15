@@ -118,7 +118,7 @@ function upload() {
 }
 
 function quiz() {
-  window.location.href = "flashcards.html";
+  window.location.href = "flashcards.php";
 }
 
 function addnote() {
@@ -148,7 +148,6 @@ function openFolder(id) {
 function viewNote(id) {
   window.location.href = "view_note.php?note_id=" + id;
 }
-
 
 
 function readNote(id) {
