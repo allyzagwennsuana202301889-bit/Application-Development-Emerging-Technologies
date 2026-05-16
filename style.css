@@ -1660,3 +1660,17 @@ body.flashcards-page .container {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+.flashcard-link {
+  display: inline-block;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.flashcard-link img {
+  display: block;
+  pointer-events: none;
+}

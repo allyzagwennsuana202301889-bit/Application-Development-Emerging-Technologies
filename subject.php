@@ -84,6 +84,16 @@ if (empty($subject_img_src) && !empty($row['description'])) {
         }
     }
 }
+
+// Get current reading progress for progress bar display
+$student_id = $_SESSION['student_id'] ?? 0;
+$read_stmt = $conn->prepare("
+    SELECT COUNT(*) as read_count FROM reading_progress 
+    WHERE student_id = ? AND subject_id = ? AND source_type = ? AND completed = 1
+");
+$read_stmt->bind_param("iis", $student_id, $id, $type);
+$read_stmt->execute();
+$read_count = $read_stmt->get_result()->fetch_assoc()['read_count'] ?? 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -111,15 +121,20 @@ if (empty($subject_img_src) && !empty($row['description'])) {
       <img src="FAQIcon.png" class="help">
       <img src="back.png" class="back">
     </div>
-    <label for="imageInput">
-      <img id="preview" src="acc.png">
-    </label>
-    <input type="file" id="imageInput" hidden>
+      <!-- Profile Image Upload -->
+    <form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
+      <label for="imageInput" style="cursor: pointer; position: relative;">
+        <img id="preview" src="<?= !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'acc.png' ?>" 
+             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;">
+      </label>
+      <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
+    </form>
+    
     <h3><?php echo $_SESSION['name'] ?? 'Guest'; ?></h3>
     <p><?php echo $_SESSION['email'] ?? ''; ?></p>
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
-    <a href="#">Analytics</a>
+    <a href="analytics.php">Analytics</a>
     <a href="#">Leaderboard</a>
     <a href="settings.html">Settings</a>
     <a href="index.php">Log out</a>
@@ -154,7 +169,7 @@ if (empty($subject_img_src) && !empty($row['description'])) {
     $json_valid = (json_last_error() === JSON_ERROR_NONE && is_array($lessons));
 
     if ($json_valid) {
-        foreach ($lessons as $lesson) {
+        foreach ($lessons as $index => $lesson) {
             $title = htmlspecialchars($lesson['title'] ?? 'Untitled');
             $desc  = htmlspecialchars($lesson['desc'] ?? '');
             
@@ -182,7 +197,7 @@ if (empty($subject_img_src) && !empty($row['description'])) {
                 }
             }
     ?>
-        <div class="subject-main-card">
+        <div class="subject-main-card" data-lesson-index="<?= $index ?>">
             <?php if ($img_src): ?>
                 <img src="<?= htmlspecialchars($img_src) ?>" alt="<?= $title ?>" class="card-image-preview">
             <?php endif; ?>
@@ -192,7 +207,7 @@ if (empty($subject_img_src) && !empty($row['description'])) {
     <?php
         }
     } else {
-        echo '<div class="subject-main-card"><div class="fake-desc">' . nl2br(htmlspecialchars($raw_desc)) . '</div></div>';
+        echo '<div class="subject-main-card" data-lesson-index="0"><div class="fake-desc">' . nl2br(htmlspecialchars($raw_desc)) . '</div></div>';
     }
     ?>
 
@@ -209,7 +224,9 @@ if (empty($subject_img_src) && !empty($row['description'])) {
         <p>Uploads</p>
       </div>
       <div class="item">
-        <button onclick="quiz()"><img src="flashcards.png"></button>
+        <a href="quiz.php?id=<?= $id ?>&type=<?= htmlspecialchars($type) ?>" class="flashcard-link">
+          <img src="flashcards.png">
+        </a>
         <p>Flash Cards</p>
       </div>
     </div>
@@ -219,5 +236,44 @@ if (empty($subject_img_src) && !empty($row['description'])) {
 </div>
 
 <script src="script.js"></script>
+<script>
+// Track which lesson cards are visible
+const lessonCards = document.querySelectorAll('.subject-main-card');
+const totalLessons = lessonCards.length;
+let observedCards = new Set();
+
+// Intersection Observer - marks card as "read" when scrolled into view
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const cardIndex = parseInt(entry.target.dataset.lessonIndex);
+            if (!observedCards.has(cardIndex)) {
+                observedCards.add(cardIndex);
+                markAsRead(cardIndex);
+            }
+        }
+    });
+}, { threshold: 0.5 });
+
+lessonCards.forEach(card => observer.observe(card));
+
+function markAsRead(lessonIndex) {
+    fetch('api_progress.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=mark_read&subject_id=<?= $id ?>&type=<?= $type ?>&lesson_index=${lessonIndex}`
+    }).then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              console.log('Lesson ' + lessonIndex + ' marked as read');
+          }
+      })
+      .catch(err => console.error('Error marking read:', err));
+}
+
+function goBack() {
+    window.history.back();
+}
+</script>
 </body>
 </html>

@@ -314,7 +314,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             <p><?php echo $useremail; ?></p>
             <a href="homepage.php">Home</a>
             <a href="notes.php">Notes</a>
-            <a href="#">Analytics</a>
+            <a href="analytics.php">Analytics</a>
             <a href="#">Leaderboard</a>
             <a href="settings.html">Settings</a>
             <a href="index.php">Log out</a>

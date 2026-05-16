@@ -7,12 +7,18 @@ if ($conn->connect_error) {
   die("Connection failed: " . $conn->connect_error);
 }
 
-$email = trim($_POST['email']);
-$password = trim($_POST['password']);
+$email = trim($_POST['email'] ?? '');
+$password = trim($_POST['password'] ?? '');
 
-// check if user exists
-$sql = "SELECT * FROM student WHERE email='$email'";
-$result = $conn->query($sql);
+if (empty($email) || empty($password)) {
+    die("Email and password required");
+}
+
+// check if user exists (SAFE with prepared statement)
+$stmt = $conn->prepare("SELECT * FROM student WHERE email = ?");
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$result = $stmt->get_result();
 
 if ($result && $result->num_rows > 0) {
 
@@ -22,7 +28,8 @@ if ($result && $result->num_rows > 0) {
 
         $_SESSION['student_id'] = $user['student_id'];
         $_SESSION['name'] = $user['name'];
-        $_SESSION['email'] = $user['email']; // ✅ FIX
+        $_SESSION['email'] = $user['email'];
+        $_SESSION['profile_image'] = $user['profile_image'] ?? '';
 
         header("Location: homepage.php");
         exit();
@@ -33,24 +40,26 @@ if ($result && $result->num_rows > 0) {
 
 } else {
 
+    // Create new user
     $name = explode("@", $email)[0];
 
-    $insert = "INSERT INTO student (name, email, password)
-               VALUES ('$name', '$email', '$password')";
+    $stmt = $conn->prepare("INSERT INTO student (name, email, password) VALUES (?, ?, ?)");
+    $stmt->bind_param("sss", $name, $email, $password);
+    
+    if ($stmt->execute()) {
 
-    if ($conn->query($insert) === TRUE) {
-
-        $new_id = $conn->insert_id;
+        $new_id = $stmt->insert_id;
 
         $_SESSION['student_id'] = $new_id;
         $_SESSION['name'] = $name;
-        $_SESSION['email'] = $email; 
+        $_SESSION['email'] = $email;
+        $_SESSION['profile_image'] = '';
 
         header("Location: homepage.php"); 
         exit();
 
     } else {
-        echo "Error: " . $conn->error;
+        echo "Error: " . $stmt->error;
     }
 }
 

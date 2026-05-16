@@ -338,3 +338,31 @@ document.getElementById('search').addEventListener('input', function() {
 });
 
 
+
+
+function uploadPFP() {
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    
+    if (!input.files || !input.files[0]) return;
+    
+    const formData = new FormData();
+    formData.append('profile_image', input.files[0]);
+    
+    fetch('upload_pfp.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            preview.src = data.image;
+        } else {
+            alert(data.error || 'Upload failed');
+        }
+    })
+    .catch(err => {
+        console.error('Upload error:', err);
+        alert('Upload failed');
+    });
+}

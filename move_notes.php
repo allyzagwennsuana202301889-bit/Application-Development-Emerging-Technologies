@@ -17,7 +17,7 @@ if(!$ids){
 foreach($ids as $id){
     $id = intval($id);
 
-    // 🔥 handle "remove from folder"
+    //  handle "remove from folder"
     if($folder_id_raw === "NULL"){
         $sql = "UPDATE notes SET folder_id = NULL WHERE note_id = $id";
     } else {

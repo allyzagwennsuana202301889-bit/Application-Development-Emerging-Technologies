@@ -787,10 +787,16 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 <img src="FAQIcon.png" class="help" alt="Help">
                 <img src="back.png" class="back" onclick="toggleSidebar()" alt="Close">
             </div>
-            <label for="imageInput">
-                <img id="preview" src="acc.png" alt="Upload Image">
-            </label>
-            <input type="file" id="imageInput" accept="image/*" hidden>
+            
+             <!-- Profile Image Upload -->
+    <form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
+      <label for="imageInput" style="cursor: pointer; position: relative;">
+        <img id="preview" src="<?= !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'acc.png' ?>" 
+             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;">
+      </label>
+      <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
+    </form>
+
             <h3><?php echo $username; ?></h3>
             <p><?php echo $useremail; ?></p>
             <a href="homepage.php">Home</a>

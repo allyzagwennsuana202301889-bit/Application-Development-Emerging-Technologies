@@ -83,16 +83,22 @@ $presets = $stmt2->get_result();
       <img src="FAQIcon.png" class="help">
       <img src="back.png" class="back">
     </div>
-    <label for="imageInput">
-      <img id="preview" src="acc.png">
-    </label>
-    <input type="file" id="imageInput" hidden>
+   <!-- Profile Image Upload -->
+    <form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
+      <label for="imageInput" style="cursor: pointer; position: relative;">
+        <img id="preview" src="<?= !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'acc.png' ?>" 
+             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;">
+      </label>
+      <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
+    </form>
+
     <h3><?php echo $_SESSION['name'] ?? 'Guest'; ?></h3>
     <p><?php echo $_SESSION['email'] ?? 'No Email'; ?></p>
+
     <a href="#">Home</a>
     <a href="notes.php">Notes</a>
-    <a href="#">Analytics</a>
-    <a href="#">Leaderboard</a>
+    <a href="analytics.php">Analytics</a>
+    <a href="leaderboard.php">Leaderboard</a>
     <a href="settings.html">Settings</a>
     <a href="index.php">Log out</a>
   </div>
@@ -112,6 +118,17 @@ if ($has_content) {
 /* 1. USER ADDED SUBJECTS (from subjects table) */
 if ($added_subjects && $added_subjects->num_rows > 0) {
   while ($row = $added_subjects->fetch_assoc()) {
+    // Get real progress for this subject
+    $prog_stmt = $conn->prepare("
+        SELECT overall_percent FROM subject_progress 
+        WHERE student_id = ? AND subject_id = ? AND source_type = ?
+    ");
+    $type = 'subjects';
+    $prog_stmt->bind_param("iis", $student_id, $row['subject_id'], $type);
+    $prog_stmt->execute();
+    $prog = $prog_stmt->get_result()->fetch_assoc();
+    $progress_value = $prog['overall_percent'] ?? 0;
+    
     echo "
     <div class='subject-card' onclick='goToSubject(" . (int)$row['subject_id'] . ")'>
       <div class='download-icon'>
@@ -126,7 +143,7 @@ if ($added_subjects && $added_subjects->num_rows > 0) {
       </div>
       <div class='card-right'>
         <img src='" . htmlspecialchars(!empty($row['subject_image']) ? $row['subject_image'] : 'file.png') . "' class='subject-icon' onerror=\"this.src='file.png'\">
-        <div class='progress'>78%</div>
+        <div class='progress'>" . $progress_value . "%</div>
       </div>
     </div>
     ";
@@ -136,6 +153,17 @@ if ($added_subjects && $added_subjects->num_rows > 0) {
 /* 2. USER ADDED NOTES (from notes table) - THIS WAS MISSING! */
 if ($added_notes && $added_notes->num_rows > 0) {
   while ($row = $added_notes->fetch_assoc()) {
+    // Get real progress for this note/subject
+    $prog_stmt = $conn->prepare("
+        SELECT overall_percent FROM subject_progress 
+        WHERE student_id = ? AND subject_id = ? AND source_type = ?
+    ");
+    $type = 'notes';
+    $prog_stmt->bind_param("iis", $student_id, $row['subject_id'], $type);
+    $prog_stmt->execute();
+    $prog = $prog_stmt->get_result()->fetch_assoc();
+    $progress_value = $prog['overall_percent'] ?? 0;
+    
     echo "
     <div class='subject-card' onclick='goToCustomSubject(" . (int)$row['subject_id'] . ", \"notes\")'>
       <div class='download-icon'>
@@ -150,7 +178,7 @@ if ($added_notes && $added_notes->num_rows > 0) {
       </div>
       <div class='card-right'>
         <img src='" . htmlspecialchars(!empty($row['subject_image']) ? $row['subject_image'] : 'file.png') . "' class='subject-icon' onerror=\"this.src='file.png'\">
-        <div class='progress'>78%</div>
+        <div class='progress'>" . $progress_value . "%</div>
       </div>
     </div>
     ";
@@ -160,6 +188,17 @@ if ($added_notes && $added_notes->num_rows > 0) {
 /* 3. PRESETS */
 if ($presets && $presets->num_rows > 0) {
   while ($row = $presets->fetch_assoc()) {
+    // Get real progress for this preset
+    $prog_stmt = $conn->prepare("
+        SELECT overall_percent FROM subject_progress 
+        WHERE student_id = ? AND subject_id = ? AND source_type = ?
+    ");
+    $type = 'subjects';
+    $prog_stmt->bind_param("iis", $student_id, $row['subject_id'], $type);
+    $prog_stmt->execute();
+    $prog = $prog_stmt->get_result()->fetch_assoc();
+    $progress_value = $prog['overall_percent'] ?? 0;
+    
     echo "
     <div class='subject-card' onclick='goToSubject(" . (int)$row['subject_id'] . ")'>
       <div class='download-icon'>
@@ -174,7 +213,7 @@ if ($presets && $presets->num_rows > 0) {
       </div>
       <div class='card-right'>
         <img src='" . htmlspecialchars(!empty($row['subject_image']) ? $row['subject_image'] : 'file.png') . "' class='subject-icon' onerror=\"this.src='file.png'\">
-        <div class='progress'>78%</div>
+        <div class='progress'>" . $progress_value . "%</div>
       </div>
     </div>
     ";
