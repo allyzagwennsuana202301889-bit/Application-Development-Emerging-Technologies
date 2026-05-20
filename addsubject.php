@@ -138,6 +138,7 @@ if (isset($_GET['note_id'])) {
 
   <div class="overlay"></div>
 
+  <div class="addsubject-scroll">
   <div class="subject-top">
     <div class="left">
       <input type="text" id="subjectName" placeholder="(Subject)" class="subject-input"
@@ -187,6 +188,7 @@ if (isset($_GET['note_id'])) {
   </div>
 <?php endif; ?>
 
+</div>
 </div>
 
 </div>

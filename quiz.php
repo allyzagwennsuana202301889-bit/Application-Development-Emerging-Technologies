@@ -335,7 +335,7 @@ $total = count($questions);
       line-height: 1.4;
     }
     
-    /* Correction card image - shows question image in corrections */
+ 
     .correction-image {
       max-width: 100%;
       max-height: 150px;
@@ -463,7 +463,7 @@ $total = count($questions);
     <div class="item">
       <a href="notes.php" style="text-decoration:none; color:inherit; display:flex; flex-direction:column; align-items:center;">
         <img src="notes.png">
-        <p>Notes</p>
+        <p>Note</p>
       </a>
     </div>
     <div class="item">

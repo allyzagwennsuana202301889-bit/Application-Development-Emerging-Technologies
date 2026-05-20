@@ -3,7 +3,7 @@ session_start();
 include 'database.php';
 
 if (!isset($_SESSION['student_id'])) {
-  die("Not logged in");
+    die("Not logged in");
 }
 
 $student_id = $_SESSION['student_id'];
@@ -11,52 +11,112 @@ $note_id = isset($_POST['note_id']) ? (int)$_POST['note_id'] : 0;
 $type = $_POST['type'] ?? '';
 
 if (!$note_id || !$type) {
-  die("Invalid request");
+    die("Invalid request");
 }
 
 /* ===============================
-   PUBLISH (ONLY MARK NOTE)
+   PUBLISH — Notify ALL students except self
 ================================= */
 if ($type === "subject") {
 
-  // Get note data (optional validation)
-  $get = $conn->prepare("
-    SELECT title, content 
-    FROM notes 
-    WHERE note_id=? AND student_id=?
-  ");
-  $get->bind_param("ii", $note_id, $student_id);
-  $get->execute();
-  $res = $get->get_result();
-  $note = $res->fetch_assoc();
+    $get = $conn->prepare("SELECT title, content FROM notes WHERE note_id=? AND student_id=?");
+    $get->bind_param("ii", $note_id, $student_id);
+    $get->execute();
+    $res = $get->get_result();
+    $note = $res->fetch_assoc();
 
-  if (!$note) {
-    die("Note not found");
-  }
+    if (!$note) {
+        die("Note not found");
+    }
 
-  // Only update note type (NO INSERT INTO subjects anymore)
-  $stmt = $conn->prepare("
-    UPDATE notes 
-    SET type='subject'
-    WHERE note_id=? AND student_id=?
-  ");
-  $stmt->bind_param("ii", $note_id, $student_id);
-  $stmt->execute();
+    $stmt = $conn->prepare("UPDATE notes SET type='subject' WHERE note_id=? AND student_id=?");
+    $stmt->bind_param("ii", $note_id, $student_id);
+    $stmt->execute();
+
+    // === NOTIFY ALL OTHER STUDENTS ===
+    $allStudents = $conn->query("SELECT student_id FROM student WHERE student_id != $student_id");
+
+    if ($allStudents && $allStudents->num_rows > 0) {
+        $insertNotif = $conn->prepare("
+            INSERT INTO notification 
+            (type, status, date_sent, student_id, subject_id, triggered_by, section, title, message, action_url)
+            VALUES ('subject_published', 'unread', NOW(), ?, ?, ?, 'updates', ?, ?, ?)
+        ");
+
+        $title = $note['title'] ?? 'Untitled';
+        $notifTitle = "Subject Published: " . $title;
+        $notifMsg = "\"" . $title . "\" is now live. Check out the latest content!";
+        $actionUrl = "subject.php?id=" . $note_id . "&type=notes";
+
+        while ($row = $allStudents->fetch_assoc()) {
+            $targetStudent = $row['student_id'];
+
+            // Check if already notified in last 24h to avoid spam
+            $check = $conn->prepare("
+                SELECT notification_id FROM notification 
+                WHERE student_id = ? AND subject_id = ? AND type = 'subject_published'
+                AND date_sent >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            ");
+            $check->bind_param("ii", $targetStudent, $note_id);
+            $check->execute();
+            if ($check->get_result()->num_rows > 0) continue;
+
+            $insertNotif->bind_param("iiisss", 
+                $targetStudent, $note_id, $student_id, $notifTitle, $notifMsg, $actionUrl
+            );
+            $insertNotif->execute();
+        }
+    }
 
 }
-
 /* ===============================
-   UNPUBLISH
+   UNPUBLISH — Notify ALL students except self
 ================================= */
 else {
 
-  $stmt = $conn->prepare("
-    UPDATE notes 
-    SET type='subject_draft'
-    WHERE note_id=? AND student_id=?
-  ");
-  $stmt->bind_param("ii", $note_id, $student_id);
-  $stmt->execute();
+    $get = $conn->prepare("SELECT title FROM notes WHERE note_id=? AND student_id=?");
+    $get->bind_param("ii", $note_id, $student_id);
+    $get->execute();
+    $res = $get->get_result();
+    $note = $res->fetch_assoc();
+    $title = $note['title'] ?? 'Untitled';
+
+    $stmt = $conn->prepare("UPDATE notes SET type='subject_draft' WHERE note_id=? AND student_id=?");
+    $stmt->bind_param("ii", $note_id, $student_id);
+    $stmt->execute();
+
+    // === NOTIFY ALL OTHER STUDENTS ===
+    $allStudents = $conn->query("SELECT student_id FROM student WHERE student_id != $student_id");
+
+    if ($allStudents && $allStudents->num_rows > 0) {
+        $insertNotif = $conn->prepare("
+            INSERT INTO notification 
+            (type, status, date_sent, student_id, subject_id, triggered_by, section, title, message, action_url)
+            VALUES ('subject_unpublished', 'unread', NOW(), ?, ?, ?, 'updates', ?, ?, 'homepage.php')
+        ");
+
+        $notifTitle = "Subject Unpublished: " . $title;
+        $notifMsg = "\"" . $title . "\" is no longer accessible. It may return soon.";
+
+        while ($row = $allStudents->fetch_assoc()) {
+            $targetStudent = $row['student_id'];
+
+            // Check if already notified in last 24h
+            $check = $conn->prepare("
+                SELECT notification_id FROM notification 
+                WHERE student_id = ? AND subject_id = ? AND type = 'subject_unpublished'
+                AND date_sent >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            ");
+            $check->bind_param("ii", $targetStudent, $note_id);
+            $check->execute();
+            if ($check->get_result()->num_rows > 0) continue;
+
+            $insertNotif->bind_param("iiiss", 
+                $targetStudent, $note_id, $student_id, $notifTitle, $notifMsg
+            );
+            $insertNotif->execute();
+        }
+    }
 }
 
 echo "updated";

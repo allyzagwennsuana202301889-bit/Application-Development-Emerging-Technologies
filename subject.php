@@ -215,10 +215,10 @@ $read_count = $read_stmt->get_result()->fetch_assoc()['read_count'] ?? 0;
 
     <!-- BOTTOM BAR -->
     <div class="bottom-file-section">
-      <div class="item">
-        <img src="notes.png">
-        <p>Quick Note</p>
-      </div>
+     <div class="item" onclick="QuickNote.open()">
+  <img src="notes.png">
+  <p>Quick Note</p>
+</div>
       <div class="item">
         <button onclick="upload()"><img src="uploaded.png"></button>
         <p>Uploads</p>

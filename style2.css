@@ -82,3 +82,288 @@ body {
   font-size: 14px;
   margin-top: 5px;
 }
+
+
+
+
+
+/* ========== NOTIFICATION PAGE ========== */
+
+.top-bars {
+    height: 55px;
+    background: #3B8BFF;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    flex-shrink: 0;
+}
+
+.top-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+    cursor: pointer;
+}
+
+/* Red notification badge */
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    background: #FF4444;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* ========== TABS ========== */
+.tabs {
+    display: flex;
+    justify-content: space-between;
+    background: #3B8BFF;
+    padding: 0 40px;
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    color: rgba(255,255,255,0.7);
+    font-size: 20px;
+    cursor: pointer;
+    padding-bottom: 10px;
+    transition: color 0.3s;
+    user-select: none;
+    font-style: italic;
+}
+
+.tab-btn.active {
+    color: white;
+}
+
+/* Tab underline indicator */
+.tab-line {
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.tab-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: #FFB347;
+    transition: transform 0.3s ease;
+}
+
+/* ========== CONTENT AREA ========== */
+.content {
+      display:block;
+    padding:0 ;
+    align-items:unset;
+    justify-content:unset;
+}
+
+.content::-webkit-scrollbar {
+    display: none;
+}
+
+.notif-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.notif-section.hidden {
+    display: none;
+}
+
+/* ========== NOTIFICATION ITEM ========== */
+.notif-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #ddd;
+    background: white;
+    position: relative;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* UNREAD = BOLD */
+.notif-item.unread .notif-title {
+    font-weight: bold;
+    color: #000;
+}
+
+.notif-item.unread .notif-desc {
+    font-weight: bold;
+    color: #333;
+}
+
+/* READ = NORMAL */
+.notif-item.read .notif-title {
+    font-weight: normal;
+    color: #333;
+}
+
+.notif-item.read .notif-desc {
+    font-weight: normal;
+    color: #666;
+}
+
+/* DELETE MODE */
+.notif-item.delete-mode-active {
+    background: #f0f0f0;
+}
+
+.notif-item.selected {
+    background: #e0e8ff;
+}
+
+/* Check icon (for delete mode) */
+.check-icon {
+    width: 45px;
+    height: 45px;
+    min-width: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.check-icon img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.check-icon.hidden {
+    display: none;
+}
+
+/* Icon circle */
+.notif-icon {
+    width: 45px;
+    height: 45px;
+    min-width: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+   
+}
+
+.notif-icon.hidden {
+    display: none;
+}
+
+.notif-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Text content */
+.notif-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.notif-title {
+    font-size: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: italic;
+}
+
+.notif-desc {
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-style: italic;
+}
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+    font-style: italic;
+}
+
+.empty-state p {
+    font-size: 16px;
+}
+
+/* ========== BOTTOM ACTIONS BAR ========== */
+.bottom-actions {
+    height: 75px;
+    background: #d3d3d3;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-shrink: 0;
+    border-radius: 15px 15px 0 0;
+}
+
+.bottom-actions.hidden {
+    display: none;
+}
+
+.bottom-actions.delete-mode {
+    background: #ff6b6b;
+}
+
+.action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.action img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+}
+
+.action p {
+    font-size: 13px;
+    color: #333;
+    font-style: italic;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 420px) {
+    .container {
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    body {
+        background: #fff;
+    }
+}

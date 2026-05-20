@@ -1674,3 +1674,201 @@ body.flashcards-page .container {
   display: block;
   pointer-events: none;
 }
+
+
+/* ============================================================
+   QUICK NOTE OVERLAY
+   ============================================================ */
+
+.qn-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.qn-overlay.active {
+  display: flex;
+  opacity: 1;
+}
+
+.qn-card {
+  width: 85%;
+  max-width: 320px;
+  background: #F4A261;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.qn-overlay.active .qn-card {
+  transform: scale(1) translateY(0);
+}
+
+.qn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.qn-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* PAPERCLIP = SAVE BUTTON */
+.qn-save-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.qn-save-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.qn-save-btn svg {
+  width: 22px;
+  height: 22px;
+  stroke: #333;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.qn-save-btn.saved svg {
+  stroke: #2E7D32;
+  opacity: 1;
+}
+
+/* CHECKMARK/V = CLOSE/DISMISS BUTTON */
+.qn-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.qn-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.qn-close-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: #333;
+  opacity: 0.7;
+}
+
+.qn-header-text {
+  font-size: 14px;
+  color: #333;
+  font-family: 'Itim', cursive;
+  opacity: 0.8;
+}
+
+.qn-body {
+  padding: 16px;
+}
+
+.qn-textarea {
+  width: 100%;
+  min-height: 120px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  font-family: 'Itim', cursive;
+  color: #5a3a1a;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+}
+
+.qn-textarea::placeholder {
+  color: rgba(90, 58, 26, 0.5);
+  font-style: italic;
+}
+
+.qn-card.saved {
+  animation: qnPulse 0.4s ease;
+}
+
+@keyframes qnPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   SEARCH SUBJECT FILTER
+   ============================================================ */
+
+.subject-card.hidden {
+  display: none !important;
+}
+
+.no-results-msg {
+  text-align: center;
+  color: white;
+  font-family: 'Itim', cursive;
+  font-size: 18px;
+  padding: 40px 20px;
+}
+
+/* ============================================================
+   SEARCH TOPIC FILTER (subject page)
+   ============================================================ */
+
+.subject-main-card.hidden {
+  display: none !important;
+}
+
+.no-topic-results {
+  text-align: center;
+  color: #333;
+  font-family: 'Itim', cursive;
+  font-size: 18px;
+  padding: 40px 20px;
+  background: #e9e9e9;
+  border-radius: 16px;
+}
+
+
+.addsubject-scroll {
+  position: absolute;
+  top: 90px;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.addsubject-scroll::-webkit-scrollbar {
+  display: none;
+}

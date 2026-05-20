@@ -11,6 +11,9 @@ if (!$id) {
 
 $subject = null;
 $source_type = null;
+$uploader_name = 'Unknown';
+$uploader_id = 0;
+$is_preset = false;
 
 /* 1. CHECK NOTES */
 $stmt = $conn->prepare("
@@ -18,6 +21,7 @@ $stmt = $conn->prepare("
            title AS subject_name,
            content,
            subject_image,
+           student_id as uploader_id,
            'notes' AS source_type
     FROM notes
     WHERE note_id = ?
@@ -30,6 +34,7 @@ $subject = $stmt->get_result()->fetch_assoc();
 
 if ($subject) {
     $source_type = 'notes';
+    $uploader_id = (int)$subject['uploader_id'];
 }
 
 /* 2. CHECK SUBJECTS */
@@ -40,6 +45,8 @@ if (!$subject) {
                description,
                content,
                subject_image,
+               student_id as uploader_id,
+               is_preset,
                'subjects' AS source_type
         FROM subjects
         WHERE subject_id = ?
@@ -51,6 +58,8 @@ if (!$subject) {
 
     if ($subject) {
         $source_type = 'subjects';
+        $uploader_id = (int)$subject['uploader_id'];
+        $is_preset = (int)($subject['is_preset'] ?? 0);
     }
 }
 
@@ -59,13 +68,51 @@ if (!$subject) {
     exit("Subject not found.");
 }
 
-/* 4. BUILD DISPLAY CARDS (SAFE LOGIC) */
+// Get uploader name
+if ($uploader_id > 0) {
+    $uploader_stmt = $conn->prepare("SELECT name FROM student WHERE student_id = ?");
+    $uploader_stmt->bind_param("i", $uploader_id);
+    $uploader_stmt->execute();
+    $uploader_result = $uploader_stmt->get_result()->fetch_assoc();
+    $uploader_name = $uploader_result['name'] ?? 'Unknown';
+} elseif ($is_preset) {
+    $uploader_name = 'The Ins';
+}
+
+/* 4. ACCESS CONTROL */
+$has_access = false;
+$is_owner = ($uploader_id === $student_id);
+
+if ($is_preset) {
+    $has_access = true;
+} elseif ($source_type === 'notes') {
+    $has_access = true; // Published notes (type='subject') are viewable by all
+} else {
+    $has_access = $is_owner || $is_preset;
+}
+
+if (!$has_access) {
+    header("Location: homepage.php?error=no_access");
+    exit;
+}
+
+/* 5. CHECK IF ALREADY IN USER'S LIST */
+$already_added = false;
+if ($student_id > 0) {
+    $check = $conn->prepare("
+        SELECT 1 FROM student_subjects 
+        WHERE student_id = ? AND subject_id = ? AND source_type = ?
+    ");
+    $check->bind_param("iis", $student_id, $id, $source_type);
+    $check->execute();
+    $already_added = $check->get_result()->num_rows > 0;
+}
+
+/* 6. BUILD DISPLAY CARDS */
 $cards = [];
 
-/* CASE 1: JSON CONTENT EXISTS (notes or advanced subjects) */
 if (!empty($subject['content'])) {
     $decoded = json_decode($subject['content'], true);
-
     if (is_array($decoded)) {
         foreach ($decoded as $c) {
             $cards[] = [
@@ -77,7 +124,19 @@ if (!empty($subject['content'])) {
     }
 }
 
-/* CASE 2: FALLBACK TO DESCRIPTION (YOUR CURRENT SYSTEM) */
+if (empty($cards) && !empty($subject['description'])) {
+    $decoded = json_decode($subject['description'], true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $c) {
+            $cards[] = [
+                'title' => $c['title'] ?? '',
+                'desc'  => $c['desc'] ?? '',
+                'img'   => $c['img'] ?? 'file.png'
+            ];
+        }
+    }
+}
+
 if (empty($cards)) {
     $cards[] = [
         'title' => $subject['subject_name'],
@@ -133,13 +192,13 @@ if (empty($cards)) {
 
   <div class="subject-content">
 
-    <!-- Top Header Card - same as viewnote.php -->
+    <!-- Top Header Card -->
     <div class="subject-top-card">
       <div class="top-left">
         <h2><?= htmlspecialchars($subject['subject_name']) ?></h2>
         <p class="uploaded">
           <strong>Uploaded by:</strong><br>
-          <?= htmlspecialchars($_SESSION['name'] ?? 'Unknown') ?>
+          <?= htmlspecialchars($uploader_name) ?>
         </p>
       </div>
       <div class="top-right">
@@ -147,7 +206,7 @@ if (empty($cards)) {
       </div>
     </div>
 
-    <!-- User Created Content Cards - same structure as viewnote.php -->
+    <!-- Content Cards -->
     <div id="cardContainer">
     <?php if (!empty($cards)): ?>
       <?php foreach ($cards as $card): 
@@ -176,16 +235,16 @@ if (empty($cards)) {
 
   </div>
 
-  <!-- Bottom bar - same as viewnote.php but with Add to List button -->
+  <!-- Bottom bar with Add to List button -->
   <div class="bottom-file-section">
     <div class="item">
-      <button onclick="addToMyList(
-<?= (int)$subject['subject_id'] ?>,
-'<?= $source_type ?>'
-)" class="study-btn" id="addBtn">
-        + Add to My List
+      <button onclick="addToMyList(<?= (int)$subject['subject_id'] ?>, '<?= $source_type ?>')" 
+              class="study-btn" 
+              id="addBtn"
+              <?= $already_added ? 'disabled' : '' ?>>
+        <?= $already_added ? 'Already in List' : '+ Add to My List' ?>
       </button>
-      <p id="addedMsg" style="display:none; color: green;">Added!</p>
+      <p id="addedMsg" style="display:none; color: green; font-size: 12px;">Added!</p>
     </div>
     <div class="item">
       <button onclick="goBack()" style="background:none;border:none;">
@@ -197,6 +256,7 @@ if (empty($cards)) {
 
 </div>
 
+<script src="script.js"></script>
 <script>
 function goBack() {
   window.history.back();
