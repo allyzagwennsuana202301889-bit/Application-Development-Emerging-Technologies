@@ -4,9 +4,10 @@ include 'database.php';
 
 $student_id = $_SESSION['student_id'] ?? 0;
 
-$title   = $_POST['title'] ?? '';
-$content = $_POST['content'] ?? '';
-$note_id = $_POST['note_id'] ?? null;
+$title          = $_POST['title'] ?? '';
+$content        = $_POST['content'] ?? '';
+$text_alignment = $_POST['text_alignment'] ?? 'center';  // <-- ADD THIS
+$note_id        = $_POST['note_id'] ?? null;
 
 /* DEBUG */
 if (!$student_id) {
@@ -19,13 +20,13 @@ if ($title === '' && $content === '') {
 
 /* ================= SAVE ================= */
 if ($note_id) {
-  // UPDATE
-  $stmt = $conn->prepare("UPDATE notes SET title=?, content=? WHERE note_id=? AND student_id=?");
-  $stmt->bind_param("ssii", $title, $content, $note_id, $student_id);
+  // UPDATE — include text_alignment!
+  $stmt = $conn->prepare("UPDATE notes SET title=?, content=?, text_alignment=? WHERE note_id=? AND student_id=?");
+  $stmt->bind_param("sssii", $title, $content, $text_alignment, $note_id, $student_id);
 } else {
-  // INSERT
-  $stmt = $conn->prepare("INSERT INTO notes (student_id, title, content) VALUES (?, ?, ?)");
-  $stmt->bind_param("iss", $student_id, $title, $content);
+  // INSERT — include text_alignment!
+  $stmt = $conn->prepare("INSERT INTO notes (student_id, title, content, text_alignment) VALUES (?, ?, ?, ?)");
+  $stmt->bind_param("isss", $student_id, $title, $content, $text_alignment);
 }
 
 if (!$stmt->execute()) {
@@ -35,3 +36,4 @@ if (!$stmt->execute()) {
 /* ================= REDIRECT ================= */
 header("Location: notes.php");
 exit;
+?>

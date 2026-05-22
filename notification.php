@@ -380,12 +380,12 @@ function getNotifImage($row) {
             selectedItems.delete(notifId);
             element.classList.remove('selected');
             const check = element.querySelector('.check-icon img');
-            if (check) check.src = 'check.png';
+            if (check) check.src = 'bluecheck.png';
         } else {
             selectedItems.add(notifId);
             element.classList.add('selected');
             const check = element.querySelector('.check-icon img');
-            if (check) check.src = 'checked.png';
+            if (check) check.src = 'bluecheck.png';
         }
 
         if (selectedItems.size === 0) {

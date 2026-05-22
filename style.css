@@ -14,6 +14,7 @@ body {
 }
 
 
+
 .container {
   width: 100%;
   height: 100vh;
@@ -551,8 +552,8 @@ button,.file-section button{
 
 .folders {
   display: flex;
-  gap: 20px;
-  padding: 15px;
+  gap: 8px;          /* REDUCE from 20px/15px to 8px */
+  padding: 10px 15px;
   overflow-x: auto;
 }
 
@@ -573,6 +574,7 @@ button,.file-section button{
   display: block;
   margin: 0 auto 5px;
 }
+
 
 
 .notes-container {
@@ -809,21 +811,14 @@ button,.file-section button{
   padding-bottom: 20px;
 }
 
-/* folders stay horizontal */
-.folders {
-  display: flex;
-  gap: 15px;
-  padding: 10px 15px;
-  overflow-x: auto;
-}
 
 
 
 /* SCROLL AREA */
 .drafts-container {
   position: absolute;
-  top: 140px;
-  bottom: 90px;
+  top: 200px;
+  bottom: 120px;
   left: 0;
   right: 0;
   overflow-y: auto;
@@ -831,18 +826,12 @@ button,.file-section button{
   display: flex;
   flex-direction: column;
   gap: 20px;
+
 }
 
 /* hide scrollbar */
 .drafts-container::-webkit-scrollbar {
   display: none;
-}
-.drafts-container {
-  position: absolute;
-  top: 200px;   
-  bottom: 90px;
-  left: 0;
-  right: 0;
 }
 
 /* CARD */
@@ -1141,12 +1130,11 @@ button,.file-section button{
 .notesv2-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 16px;
+  padding: 10px 16px 140px 16px; /* INCREASE bottom padding from 100px to 140px */
   display: flex;
   flex-direction: column;
   gap: 15px;
-   min-height: 0;
-     padding-bottom: 100px;
+  min-height: 0;
 }
 
 .notesv2-list::-webkit-scrollbar {
@@ -1155,13 +1143,20 @@ button,.file-section button{
 
 /* note card */
 .notesv2-card {
-  background: #e9e9e9;
+  background: white;
   border-radius: 14px;
-  padding: 16px;
-  font-family: 'Itim', cursive;
-  font-size: 17px;
-  line-height: 1.5;
+  padding: 0;
+  font-family: 'Inria Sans', sans-serif;
   box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  overflow: hidden; /* keep this for rounded corners */
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  min-height: 200px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  margin: 0 12px 16px 12px; /* ADD bottom margin between cards */
+  display: flex;
+  flex-direction: column; /* ADD - makes card stretch with content */
 }
 
 /* delete button */
@@ -1686,7 +1681,7 @@ body.flashcards-page .container {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.5);
   display: none;
   justify-content: center;
   align-items: center;
@@ -1703,7 +1698,7 @@ body.flashcards-page .container {
 .qn-card {
   width: 85%;
   max-width: 320px;
-  background: #F4A261;
+  background: #E8956A;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -1719,20 +1714,20 @@ body.flashcards-page .container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.08);
+  padding: 16px;
+  background: #C47A5A;
 }
 
 .qn-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* PAPERCLIP = SAVE BUTTON */
 .qn-save-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -1741,6 +1736,7 @@ body.flashcards-page .container {
   justify-content: center;
   border-radius: 50%;
   transition: background 0.2s;
+  padding: 0;
 }
 
 .qn-save-btn:hover {
@@ -1748,22 +1744,20 @@ body.flashcards-page .container {
 }
 
 .qn-save-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   stroke: #333;
-  opacity: 0.8;
-  transition: all 0.2s;
+  fill: none;
 }
 
 .qn-save-btn.saved svg {
   stroke: #2E7D32;
-  opacity: 1;
 }
 
 /* CHECKMARK/V = CLOSE/DISMISS BUTTON */
 .qn-close-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -1772,6 +1766,7 @@ body.flashcards-page .container {
   justify-content: center;
   border-radius: 50%;
   transition: background 0.2s;
+  padding: 0;
 }
 
 .qn-close-btn:hover {
@@ -1779,21 +1774,28 @@ body.flashcards-page .container {
 }
 
 .qn-close-btn svg {
-  width: 20px;
-  height: 20px;
-  fill: #333;
-  opacity: 0.7;
+  width: 24px;
+  height: 24px;
+  stroke: #333;
+  fill: none;
 }
 
-.qn-header-text {
-  font-size: 14px;
-  color: #333;
-  font-family: 'Itim', cursive;
-  opacity: 0.8;
+.qn-title-input {
+ background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: #5a3a1a;
+  font-family: 'Inria Sans', sans-serif;
+  font-style: italic;
+  width: 180px;
 }
 
+.qn-title-input::placeholder {
+  color: rgba(90, 58, 26, 0.6);
+}
 .qn-body {
-  padding: 16px;
+  padding: 20px 16px;
 }
 
 .qn-textarea {
@@ -1801,16 +1803,17 @@ body.flashcards-page .container {
   min-height: 120px;
   border: none;
   background: transparent;
-  font-size: 18px;
-  font-family: 'Itim', cursive;
+  font-size: 22px;
+  font-family: 'Inria Sans', sans-serif;
+  font-style: italic;
   color: #5a3a1a;
   resize: none;
   outline: none;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .qn-textarea::placeholder {
-  color: rgba(90, 58, 26, 0.5);
+  color: rgba(90, 58, 26, 0.6);
   font-style: italic;
 }
 
@@ -1871,4 +1874,88 @@ body.flashcards-page .container {
 
 .addsubject-scroll::-webkit-scrollbar {
   display: none;
+}
+
+ .folder {
+  position: relative;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 0;
+  right: 5px;
+  background: red;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: none;
+}
+
+.folder.show-delete .delete-btn {
+  display: block;
+}
+
+.back-folder {
+  cursor: pointer;
+  min-width: 20px;   /* REDUCE from 90px */
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;        /* remove extra padding */
+}
+
+.back-folder img {
+  width: 40px;       /* slightly smaller */
+  height: 40px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* ========== NOTE CARD WITH TITLE + CONTENT ========== */
+
+
+.notesv2-card:active {
+  transform: scale(0.98);
+}
+
+.notesv2-card.selected {
+  outline: 3px solid #F4A261;
+  background: #fff3e6;
+}
+
+/* Title section - gray bar like your screenshot */
+.note-card-title {
+  background: #d0d0d0;
+  padding: 12px 16px;
+  font-size: 18px;
+  font-weight: 500;
+  font-style: italic;
+  color: #333;
+  border-bottom: 1px solid #bbb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0; /* ADD - prevent title from shrinking */
+}
+
+/* Content section - white area */
+.note-card-content {
+  background: #ffffff;
+  padding: 16px 16px 24px 16px; /* MORE bottom padding */
+  font-size: 16px;
+  line-height: 1.6; /* INCREASE from 1.5 for better readability */
+  color: #333;
+  min-height: 80px;
+  font-family: 'Itim', cursive;
+  flex: 1; /* ADD - let content area grow */
+  overflow: visible; /* ADD - don't clip text */
+}
+
+/* Handle empty content */
+.note-card-content:empty::before {
+  content: "(No content)";
+  color: #888;
+  font-style: italic;
 }

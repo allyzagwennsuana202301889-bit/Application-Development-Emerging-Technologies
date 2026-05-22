@@ -3,7 +3,20 @@
   padding: 0;
   box-sizing: border-box;
   font-family: 'Inria Sans', sans-serif;
+   scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE 10+ */
 }
+
+.content::-webkit-scrollbar {
+    display: none;
+}
+
+
+
+*::-webkit-scrollbar {
+  display: none;                /* Chrome, Safari, Edge */
+}
+
 
 body {
   background: #111;
@@ -14,9 +27,18 @@ body {
   max-width: 412px;
   height: 100vh;
   margin: 0 auto;
-  background: #dcdcdc;
+  background: #f0f0f0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* FORM MUST BE FLEX TOO */
+.container > form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
 /* TOP BAR */
@@ -27,11 +49,13 @@ body {
   align-items: center;
   padding: 0 15px;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .back-btn {
   font-size: 30px;
   cursor: pointer;
+  color: #000;
 }
 
 .title-input {
@@ -41,29 +65,40 @@ body {
   background: transparent;
   outline: none;
   text-align: center;
+  color: #000;
 }
 
-/* CONTENT AREA */
-.content {
+.title-input::placeholder {
+  color: #888;
+}
+
+/* NOTE CONTENT AREA - fills space between top and bottom */
+.note-content-area {
   flex: 1;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 30px 20px;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+  background: #f0f0f0;
 }
 
 .text-area {
   width: 100%;
-  min-height: 300px;
+  height: 100%;
   border: none;
   outline: none;
   background: transparent;
   font-size: 18px;
   text-align: center;
   resize: none;
+  color: #000;
 }
 
-/* BOTTOM BAR */
+.text-area::placeholder {
+  color: #888;
+}
+
+/* BOTTOM BAR - pinned to bottom */
 .bottom-bar {
   height: 90px;
   background: #cfcfcf;
@@ -71,18 +106,29 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  gap: 5px;
 }
 
-.edit-btn {
-  font-size: 40px;
+.bottom-bar button {
+  background: none;
+  border: none;
   cursor: pointer;
+  padding: 0;
+}
+
+.bottom-bar button img {
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+  display: block;
 }
 
 .bottom-bar p {
   font-size: 14px;
-  margin-top: 5px;
+  color: #000;
+  margin: 0;
 }
-
 
 
 
@@ -170,12 +216,12 @@ body {
     transition: transform 0.3s ease;
 }
 
-/* ========== CONTENT AREA ========== */
+/* ========== NOTIFICATION CONTENT AREA ========== */
 .content {
-      display:block;
-    padding:0 ;
-    align-items:unset;
-    justify-content:unset;
+    flex: 1;
+    display: block;
+    padding: 0;
+    overflow-y: auto;
 }
 
 .content::-webkit-scrollbar {
@@ -267,7 +313,6 @@ body {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-   
 }
 
 .notif-icon.hidden {
@@ -356,6 +401,336 @@ body {
     font-style: italic;
 }
 
+
+
+/* ========== QUICK NOTE OVERLAY ========== */
+.qn-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.qn-overlay.active {
+    opacity: 1;
+}
+
+.qn-card {
+    background: #fff;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.95);
+    transition: transform 0.25s ease;
+}
+
+.qn-overlay.active .qn-card {
+    transform: scale(1);
+}
+
+.qn-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    background: #f8f8f8;
+}
+
+.qn-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.qn-header-text {
+    font-size: 14px;
+    color: #333;
+    font-style: italic;
+}
+
+.qn-save-btn,
+.qn-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qn-save-btn svg,
+.qn-close-btn svg {
+    width: 22px;
+    height: 22px;
+    fill: #333;
+}
+
+.qn-save-btn svg {
+    stroke: #333;
+    fill: none;
+}
+
+.qn-save-btn.saved svg {
+    stroke: #4CAF50;
+}
+
+.qn-body {
+    padding: 12px 16px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.qn-textarea {
+    width: 100%;
+    min-height: 80px;
+    max-height: 300px;
+    border: none;
+    outline: none;
+    resize: vertical;
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1.5;
+    background: transparent;
+}
+
+.qn-textarea::placeholder {
+    color: #aaa;
+}
+
+
+
+/* ========== EDIT NOTE PAGE (viewnote.php) ========== */
+
+/* Top bar back button */
+.top-bar button {
+  background: none;
+  border: none;
+  font-size: 30px;
+  cursor: pointer;
+  color: #000;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Title input in edit page */
+.top-bar input[type="text"] {
+  flex: 1;
+  font-size: 20px;
+  border: none;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  color: #000;
+  font-family: 'Inria Sans', sans-serif;
+}
+
+.top-bar input[type="text"]::placeholder {
+  color: #888;
+}
+
+/* Editor content area */
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.editor textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 18px;
+  text-align: center;
+  resize: none;
+  color: #000;
+  font-family: 'Inria Sans', sans-serif;
+  line-height: 1.5;
+}
+
+.editor textarea::placeholder {
+  color: #888;
+}
+
+/* Bottom save bar */
+.bottom {
+  height: 90px;
+  background: #cfcfcf;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bottom button[type="submit"] {
+  background: #3B8BFF;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 40px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'Inria Sans', sans-serif;
+  transition: background 0.2s;
+}
+
+.bottom button[type="submit"]:hover {
+  background: #2a7aee;
+}
+
+
+
+/* ========== TEXT TOOLBAR ========== */
+.text-toolbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  background: #e0e0e0;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: #d0d0d0;
+}
+
+.toolbar-btn.active {
+  background: #3B8BFF;
+}
+
+.toolbar-btn.active svg {
+  fill: white;
+}
+
+.toolbar-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #333;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #bbb;
+  margin: 0 4px;
+}
+
+/* Text alignment classes */
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-justify { text-align: justify !important; }
+
+/* Bullet list styles for textarea */
+.text-area.bullets,
+.editor textarea.bullets,
+.text-area.numbers,
+.editor textarea.numbers {
+  text-align: left !important;
+}
+
+/* ========== RICH TEXT EDITOR ========== */
+.rich-editor {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 18px;
+  text-align: center;
+  color: #000;
+  font-family: 'Inria Sans', sans-serif;
+  line-height: 1.5;
+  overflow-y: auto;
+  /* REMOVED: -webkit-user-modify: read-write-plaintext-only; */
+}
+
+.rich-editor:empty:before,
+.rich-editor.empty:before {
+  content: attr(placeholder);
+  color: #888;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.rich-editor b,
+.rich-editor strong {
+  font-weight: bold;
+}
+
+.rich-editor i,
+.rich-editor em {
+  font-style: italic;
+}
+
+.rich-editor u {
+  text-decoration: underline;
+}
+
+.rich-editor s,
+.rich-editor strike {
+  text-decoration: line-through;
+}
+
+.rich-editor sub {
+  font-size: smaller;
+  vertical-align: sub;
+}
+
+.rich-editor sup {
+  font-size: smaller;
+  vertical-align: super;
+}
+
+.rich-editor ul,
+.rich-editor ol {
+  padding-left: 25px;
+  text-align: left;
+}
+
+.rich-editor ul {
+  list-style-type: disc;
+}
+
+.rich-editor ol {
+  list-style-type: decimal;
+}
 /* ========== RESPONSIVE ========== */
 @media (max-width: 420px) {
     .container {

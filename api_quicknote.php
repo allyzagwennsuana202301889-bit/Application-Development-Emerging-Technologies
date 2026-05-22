@@ -1,38 +1,35 @@
 <?php
 session_start();
-header('Content-Type: application/json');
 include 'database.php';
 
-if (empty($_SESSION['student_id'])) {
+header('Content-Type: application/json');
+
+$student_id = $_SESSION['student_id'] ?? 0;
+
+if (!$student_id) {
     echo json_encode(['success' => false, 'error' => 'Not logged in']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-$content = trim($input['content'] ?? '');
+$data = json_decode(file_get_contents('php://input'), true);
+$title = trim($data['title'] ?? 'Untitled');
+$content = trim($data['content'] ?? '');
 
 if (empty($content)) {
-    echo json_encode(['success' => false, 'error' => 'Empty note']);
+    echo json_encode(['success' => false, 'error' => 'Empty content']);
     exit;
 }
 
-$student_id = (int)$_SESSION['student_id'];
+$text_alignment = 'center';
 
-// Auto-title from first line
-$lines = explode("\n", $content);
-$title = trim($lines[0]);
-if (strlen($title) > 30) $title = substr($title, 0, 30) . '...';
-if (empty($title)) $title = 'Quick Note';
+$stmt = $conn->prepare("INSERT INTO notes (student_id, title, content, text_alignment) VALUES (?, ?, ?, ?)");
+$stmt->bind_param("isss", $student_id, $title, $content, $text_alignment);
 
-// Simple insert — only the columns that matter
-$stmt = $conn->prepare("
-    INSERT INTO notes (student_id, title, content, type, date_uploaded)
-    VALUES (?, ?, ?, 'general', NOW())
-");
+if ($stmt->execute()) {
+    echo json_encode(['success' => true, 'note_id' => $conn->insert_id]);
+} else {
+    echo json_encode(['success' => false, 'error' => $stmt->error]);
+}
 
-$stmt->bind_param("iss", $student_id, $title, $content);
-$stmt->execute();
-
-echo json_encode(['success' => true, 'note_id' => $stmt->insert_id]);
 $stmt->close();
 ?>

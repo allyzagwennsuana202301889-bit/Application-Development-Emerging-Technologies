@@ -58,29 +58,18 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // IMAGE UPLOAD
-  if (input && preview) {
-    input.addEventListener("change", function () {
-      const file = this.files[0];
-
-      if (file) {
-        const reader = new FileReader();
-
-        reader.onload = function (e) {
-          const base64 = e.target.result;
-          preview.src = base64;
-          localStorage.setItem("profileImage", base64);
-        };
-
-        reader.readAsDataURL(file);
-      }
-    });
-  }
-
-  // LOAD SAVED IMAGE
-  const savedImage = localStorage.getItem("profileImage");
-  if (savedImage && preview) {
-    preview.src = savedImage;
-  }
+if (input && preview) {
+  input.addEventListener("change", function () {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        preview.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
 
   // SEARCH FILTER (MODAL)
   if (search) {
@@ -102,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // GLOBAL FUNCTIONS (for HTML onclick)
 
 function study() {
-  window.location.href = "lecture.html";
+  window.location.href = "homepage.php";
 }
 
 function goBack() {
@@ -125,6 +114,11 @@ function addnote() {
   window.location.href = "addsubject.php";
 }
 
+function notif() {
+  window.location.href = "notification.php";
+}
+
+
 function goToSubject(id) {
   window.location.href = "subject.php?id=" + id;
 }
@@ -145,8 +139,8 @@ function openFolder(id) {
   window.location.href = "notes.php?folder_id=" + id;
 }
 
-function viewNote(id) {
-  window.location.href = "view_note.php?note_id=" + id;
+function viewNote() {
+  window.location.href = "notes.php?"
 }
 
 
@@ -421,8 +415,9 @@ function uploadPFP() {
 
   let qnOverlay = null;
   let qnTextarea = null;
-  let qnSaveBtn = null;    // paperclip = save
-  let qnCloseBtn = null;   // checkmark/V = close
+  let qnTitleInput = null;
+  let qnSaveBtn = null;
+  let qnCloseBtn = null;
   let qnCard = null;
   let qnOpen = false;
   let qnInitialized = false;
@@ -437,17 +432,17 @@ function uploadPFP() {
           <div class="qn-card" id="qnCard">
             <div class="qn-header">
               <div class="qn-header-left">
-                <!-- PAPERCLIP = SAVE -->
                 <button class="qn-save-btn" id="qnSaveBtn" title="Save to notes">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
                   </svg>
                 </button>
-                <span class="qn-header-text">(Add to notes)</span>
+                <input type="text" class="qn-title-input" id="qnTitleInput" placeholder="(Title here)" value="Untitled">
               </div>
-              <!-- CHECKMARK/V = CLOSE -->
               <button class="qn-close-btn" id="qnCloseBtn" title="Close">
-                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
               </button>
             </div>
             <div class="qn-body">
@@ -461,13 +456,13 @@ function uploadPFP() {
 
     qnOverlay = document.getElementById('qnOverlay');
     qnTextarea = document.getElementById('qnTextarea');
+    qnTitleInput = document.getElementById('qnTitleInput');
     qnSaveBtn = document.getElementById('qnSaveBtn');
     qnCloseBtn = document.getElementById('qnCloseBtn');
     qnCard = document.getElementById('qnCard');
 
     if (!qnOverlay) return;
 
-    // PAPERCLIP = SAVE
     if (qnSaveBtn) {
       qnSaveBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -475,7 +470,6 @@ function uploadPFP() {
       });
     }
 
-    // CHECKMARK/V = CLOSE
     if (qnCloseBtn) {
       qnCloseBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -483,12 +477,10 @@ function uploadPFP() {
       });
     }
 
-    // Close on backdrop click
     qnOverlay.addEventListener('click', function(e) {
       if (e.target === qnOverlay) closeQN();
     });
 
-    // Auto-resize
     if (qnTextarea) {
       qnTextarea.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -496,7 +488,6 @@ function uploadPFP() {
       });
     }
 
-    // Keyboard
     document.addEventListener('keydown', function(e) {
       if (!qnOpen) return;
       if (e.key === 'Escape') {
@@ -511,12 +502,11 @@ function uploadPFP() {
   }
 
   function bindTriggers() {
-    const items = document.querySelectorAll('.bottom-file-section .item');
+    const items = document.querySelectorAll('.bottom-file-section .item, .bottom-add-section .item');
     items.forEach(function(item) {
       const txt = (item.textContent || '').toLowerCase();
-      if (txt.includes('quick note') || txt.includes('quicknote')) {
+      if (txt.includes('quick note') || txt.includes('quicknote') || txt.includes('add notes')) {
         item.style.cursor = 'pointer';
-        item.removeEventListener('click', openQN);
         item.addEventListener('click', openQN);
       }
     });
@@ -533,15 +523,17 @@ function uploadPFP() {
       qnTextarea.value = '';
       qnTextarea.style.height = 'auto';
     }
+    if (qnTitleInput) {
+      qnTitleInput.value = 'Untitled';
+    }
     if (qnSaveBtn) qnSaveBtn.classList.remove('saved');
-    if (qnCard) qnCard.classList.remove('saved');
 
     qnOverlay.style.display = 'flex';
     requestAnimationFrame(function() {
       qnOverlay.classList.add('active');
     });
     setTimeout(function() {
-      if (qnTextarea) qnTextarea.focus();
+      if (qnTitleInput) qnTitleInput.focus();
     }, 300);
   }
 
@@ -555,14 +547,17 @@ function uploadPFP() {
         qnTextarea.value = '';
         qnTextarea.style.height = 'auto';
       }
+      if (qnTitleInput) qnTitleInput.value = 'Untitled';
       if (qnSaveBtn) qnSaveBtn.classList.remove('saved');
-      if (qnCard) qnCard.classList.remove('saved');
     }, 250);
   }
 
   function saveQN() {
-    if (!qnTextarea) return;
+    if (!qnTextarea || !qnTitleInput) return;
+    
     const content = qnTextarea.value.trim();
+    const title = qnTitleInput.value.trim() || 'Untitled';
+    
     if (!content) return;
 
     if (qnSaveBtn) qnSaveBtn.classList.add('saved');
@@ -570,22 +565,26 @@ function uploadPFP() {
     fetch('api_quicknote.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: content })
+      body: JSON.stringify({ 
+        title: title,
+        content: content 
+      })
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
       if (data.success) {
-        setTimeout(function() { closeQN(); }, 400);
+        setTimeout(function() { closeQN(); }, 600);
       } else {
-        alert('Save failed: ' + data.error);
+        alert('Save failed: ' + (data.error || 'Unknown error'));
         if (qnSaveBtn) qnSaveBtn.classList.remove('saved');
       }
     })
-    .catch(function() {
-      alert('Network error');
+    .catch(function(err) {
+      alert('Network error: ' + err.message);
       if (qnSaveBtn) qnSaveBtn.classList.remove('saved');
     });
   }
+
   window.QuickNote = {
     open: openQN,
     close: closeQN,
@@ -607,7 +606,6 @@ function uploadPFP() {
   setTimeout(bindTriggers, 1500);
 
 })();
-
 
 
 

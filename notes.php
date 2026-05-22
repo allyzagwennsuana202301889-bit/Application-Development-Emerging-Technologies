@@ -32,10 +32,9 @@ $folders_result = $conn->query($sql_folders);
 
 <div class="container">
 
- <nav class="nav">
+  <nav class="nav">
     <span class="hamburger">&#9776;</span>
-   <img src="bell.png" class="bells">
-    <button onclick="goBack()" class="back-btn"><img src="back.png"></button>
+    <img src="bell.png" class="bell" onclick="notif()">
   </nav>
 
   <div class="nav-links">
@@ -61,63 +60,92 @@ $folders_result = $conn->query($sql_folders);
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
     <a href="settings.html">Settings</a>
-    <a href="index.php">Log out</a>
+    <a href="logout.php">Log out</a>
   </div>
 
   <!-- OVERLAY -->
   <div class="overlay"></div>
 
-<div class="notesv2-container">
+  <div class="folders">
 
-  <div class="notesv2-folders">
-    <div class="notesv2-add" onclick="createFolder()">
+    <?php if ($folder_id) { ?>
+  <div class="folder back-folder" onclick="goBack()">
+    <img src="back.png">
+  </div>
+  <?php } ?>
+  
+    <div class="folder add-folder" onclick="createFolder()">
       <img src="add.png">
       <p>Add</p>
     </div>
 
     <?php while($f = $folders_result->fetch_assoc()){ ?>
-    <div class="notesv2-folder" data-id="<?= $f['folder_id'] ?>">
-      <button class="notesv2-delete-btn"
+    <div class="folder" data-id="<?= $f['folder_id'] ?>">
+      <button class="delete-btn"
         onclick="deleteFolder(<?= $f['folder_id'] ?>,event)">-</button>
 
-  
       <img src="folder.png">
-     <p class="folder-name" onclick="renameFolder(<?= $f['folder_id'] ?>, event)">
-  <?= $f['folder_name'] ?>
-</p>
+      <p class="folder-name" onclick="renameFolder(<?= $f['folder_id'] ?>, event)">
+        <?= $f['folder_name'] ?>
+      </p>
     </div>
     <?php } ?>
   </div>
 
-  <div class="notesv2-list">
-    <?php while($n = $notes_result->fetch_assoc()){ ?>
-    <div class="notesv2-card" data-id="<?= $n['note_id'] ?>">
-      <?= nl2br(htmlspecialchars($n['content'])) ?>
-    </div>
-    <?php } ?>
+  <!-- NOTES SCROLL AREA -->
+  <div class="drafts-container">
+
+<?php while($n = $notes_result->fetch_assoc()){ 
+  $title = !empty($n['title']) ? $n['title'] : 'Untitled';
+  $content = $n['content'] ?? '';
+  
+  // Check if content is JSON (old format)
+  $decoded = json_decode($content, true);
+  if ($decoded !== null && is_array($decoded)) {
+    // Extract text from JSON structure
+    $parts = [];
+    foreach ($decoded as $item) {
+      if (!empty($item['title'])) $parts[] = $item['title'];
+      if (!empty($item['desc'])) $parts[] = $item['desc'];
+    }
+    $plainText = implode("\n", $parts);
+  } else {
+    // Normal HTML content — strip tags
+    $plainText = strip_tags($content);
+  }
+  
+  // Get first few lines for preview (max 4 lines)
+  $lines = explode("\n", $plainText);
+  $previewLines = array_slice($lines, 0, 4);
+  $preview = implode("\n", $previewLines);
+?>
+<div class="notesv2-card" data-id="<?= $n['note_id'] ?>">
+  <div class="note-card-title"><?= htmlspecialchars($title) ?></div>
+  <div class="note-card-content"><?= nl2br(htmlspecialchars($preview)) ?></div>
+</div>
+<?php } ?>
+
   </div>
 
-</div>
+  <!-- BOTTOM -->
+  <div class="bottom-add-section" id="bottomBar">
 
-<!-- BOTTOM BAR -->
-<div class="bottom-notes" id="bottomBar">
+    <div class="item">
+      <button onclick="addnote()"><img src="addnote.png"></button>
+      <p>Add Subject</p>
+    </div>
 
-<div class="item">
-   <button onclick="addnote()"><img src="addnote.png"></button>
-  <p>Add Subject</p>
-</div>
+    <div class="item">
+      <button onclick="upload()"><img src="uploaded.png"></button>
+      <p>Uploads</p>
+    </div>
 
-<div class="item">
-  <button onclick="upload()"><img src="uploaded.png"></button>
-  <p>Uploads</p>
-</div>
+    <div class="item">
+      <button onclick="noting()"><img src="notes.png"></button>
+      <p>Add Notes</p>
+    </div>
 
-<div class="item">
- <button onclick="noting()"> <img src="notes.png"></button>
-  <p>Add Notes</p>
-</div>
-
-</div>
+  </div>
 
 </div>
 
@@ -125,20 +153,18 @@ $folders_result = $conn->query($sql_folders);
 <div class="modales" id="moveModal">
   <div class="modal-contentss">
     <h3>Select Folder</h3>
-   
 
     <?php 
     $folders_result->data_seek(0);
     while($f = $folders_result->fetch_assoc()){ ?>
-     <div class="folder-option" onclick="event.stopPropagation(); moveToFolder(<?= $f['folder_id'] ?>)">
+      <div class="folder-option" onclick="event.stopPropagation(); moveToFolder(<?= $f['folder_id'] ?>)">
         <?= $f['folder_name'] ?>
       </div>
-
-      <div class="folder-option" onclick="moveToFolder(null)">
-   Remove from folder
-</div>
     <?php } ?>
- <button onclick="closeMove()">Cancel</button>
+    <div class="folder-option" onclick="moveToFolder(null)">
+      Remove from folder
+    </div>
+    <button onclick="closeMove()">Cancel</button>
   </div>
 </div>
 
@@ -207,8 +233,11 @@ function toggle(card,id){
 }
 
 /* ================= FOLDERS ================= */
-document.querySelectorAll(".notesv2-folder").forEach(folder=>{
+document.querySelectorAll(".folder").forEach(folder=>{
   let id = folder.dataset.id;
+
+  // skip ADD button and back button (no data-id)
+  if(!id) return;
 
   let isHeld = addHold(folder, ()=>{
     folder.classList.add("show-delete");
@@ -228,8 +257,8 @@ document.querySelectorAll(".notesv2-folder").forEach(folder=>{
 
 /* ================= CLICK OUTSIDE ================= */
 document.addEventListener("click", (e)=>{
-  if(!e.target.closest(".notesv2-folder")){
-    document.querySelectorAll(".notesv2-folder")
+  if(!e.target.closest(".folder")){
+    document.querySelectorAll(".folder")
       .forEach(f=>f.classList.remove("show-delete"));
   }
 });
@@ -261,9 +290,18 @@ function deleteFolder(id,e){
 /* ================= BOTTOM BAR ================= */
 function switchBar(){
   document.getElementById("bottomBar").innerHTML = `
-    <button onclick="openMove()">Move</button>
-    <button onclick="deleteNotes()">Delete</button>
-    <button onclick="cancelSelection()">Cancel</button>
+    <div class="item">
+      <button onclick="openMove()"><img src="moveit.png"></button>
+      <p>Move</p>
+    </div>
+    <div class="item">
+      <button onclick="deleteNotes()"><img src="bin.png"></button>
+      <p>Delete</p>
+    </div>
+    <div class="item">
+      <button onclick="cancelSelection()"><img src="back.png"></button>
+      <p>Cancel</p>
+    </div>
   `;
 }
 

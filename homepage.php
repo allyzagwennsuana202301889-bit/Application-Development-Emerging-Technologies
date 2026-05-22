@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 include 'database.php';
 
@@ -74,7 +75,7 @@ $presets = $stmt2->get_result();
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <input type="text" id="searchInput" placeholder="Search subject">
-    <img src="bell.png" class="bell">
+    <img src="bell.png" onclick="notif()" class="bell" >
   </nav>
 
   <!-- SIDEBAR -->
@@ -83,14 +84,35 @@ $presets = $stmt2->get_result();
       <img src="FAQIcon.png" class="help">
       <img src="back.png" class="back">
     </div>
-   <!-- Profile Image Upload -->
-    <form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
-      <label for="imageInput" style="cursor: pointer; position: relative;">
-        <img id="preview" src="<?= !empty($_SESSION['profile_image']) ? $_SESSION['profile_image'] : 'acc.png' ?>" 
-             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;">
-      </label>
-      <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
-    </form>
+    
+   <!-- Profile Image Fetch -->
+   <?php
+// Fetch current user's profile image fresh from DB
+$pfp_stmt = $conn->prepare("SELECT profile_image FROM student WHERE student_id = ?");
+$pfp_stmt->bind_param("i", $student_id);
+$pfp_stmt->execute();
+$pfp_result = $pfp_stmt->get_result()->fetch_assoc();
+$profile_image = !empty($pfp_result['profile_image']) ? $pfp_result['profile_image'] : 'acc.png';
+
+// Cache bust: append timestamp so browser always fetches fresh
+$image_src = $profile_image;
+if (strpos($image_src, 'data:') === 0) {
+    // base64 — no cache bust needed, but force reload with unique session
+    $image_src = $profile_image;
+} else {
+    $image_src .= '?t=' . time();
+}
+?>
+
+<!-- Profile Image Upload -->
+<form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
+  <label for="imageInput" style="cursor: pointer; position: relative;">
+    <img id="preview" src="<?= htmlspecialchars($image_src) ?>" 
+         style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;"
+         onerror="this.src='acc.png'">
+  </label>
+  <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
+</form>
 
     <h3><?php echo $_SESSION['name'] ?? 'Guest'; ?></h3>
     <p><?php echo $_SESSION['email'] ?? 'No Email'; ?></p>
@@ -100,7 +122,7 @@ $presets = $stmt2->get_result();
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
     <a href="settings.html">Settings</a>
-    <a href="index.php">Log out</a>
+    <a href="logout.php">Log out</a>
   </div>
 
   <div class="overlay"></div>

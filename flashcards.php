@@ -298,7 +298,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         <nav class="nav">
             <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-            <img src="bell.png" class="bell" alt="Notifications">
+            <img src="bell.png" onclick="notif()" class="bell">
         </nav>
 
         <div class="nav-links" id="sidebar">
@@ -315,9 +315,9 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             <a href="homepage.php">Home</a>
             <a href="notes.php">Notes</a>
             <a href="analytics.php">Analytics</a>
-            <a href="#">Leaderboard</a>
+            <a href="leaderboard.php">Leaderboard</a>
             <a href="settings.html">Settings</a>
-            <a href="index.php">Log out</a>
+            <a href="logout.php">Log out</a>
         </div>
 
         <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
