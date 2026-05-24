@@ -103,9 +103,9 @@ body {
   height: 90px;
   background: #cfcfcf;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-around;
   flex-shrink: 0;
   gap: 5px;
 }
@@ -128,6 +128,32 @@ body {
   font-size: 14px;
   color: #000;
   margin: 0;
+}
+
+/* Bottom action buttons */
+.bottom-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.bottom-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.bottom-btn svg {
+  fill: #333;
+}
+
+.bottom-btn p {
+  font-size: 13px;
+  color: #333;
+  font-style: italic;
 }
 
 
@@ -730,6 +756,75 @@ body {
 
 .rich-editor ol {
   list-style-type: decimal;
+}
+
+.img-upload-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-left: 10px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: right;
+  justify-content: right;
+}
+
+.img-upload-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.img-upload-btn svg {
+  fill: #333;
+  width: 24px;
+  height: 24px;
+}
+
+.img-upload-btn:hover svg {
+  fill: #000;
+}
+
+/* Style for images inside the editor */
+.rich-editor img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 10px 0;
+  display: block;
+  cursor: pointer;
+}
+
+/* Selected image indicator */
+.rich-editor img.selected-image {
+  outline: 3px solid #3B8BFF;
+  outline-offset: 4px;
+}
+
+/* Image alignment */
+.rich-editor img[data-align="left"] {
+  float: left;
+  margin-right: 15px;
+  margin-left: 0;
+}
+
+.rich-editor img[data-align="right"] {
+  float: right;
+  margin-left: 15px;
+  margin-right: 0;
+}
+
+.rich-editor img[data-align="center"] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  float: none;
+}
+
+.rich-editor img[data-align="justify"] {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  float: none;
 }
 /* ========== RESPONSIVE ========== */
 @media (max-width: 420px) {

@@ -26,7 +26,7 @@ $student_id = $_SESSION['student_id'] ?? 0;
 
 <!-- TOP -->
 <div class="top-bar">
-  <button type="button" class="back-btn" onclick="window.location.href='notes.php'" style="background:none;border:none;font-size:30px;cursor:pointer;color:#000;">←</button>
+  <button type="button" class="back-btn" onclick="saveAndGoBack()" style="background:none;border:none;font-size:30px;cursor:pointer;color:#000;">←</button>
   <input type="text" name="title" class="title-input" placeholder="(Insert title here)">
 </div>
 
@@ -83,10 +83,17 @@ $student_id = $_SESSION['student_id'] ?? 0;
 
 <!-- BOTTOM -->
 <div class="bottom-bar">
-  <button type="submit" onclick="prepareSubmit()"><img src="addnote.png"></button>
-  <p>Add Subject</p>
+  <button type="button" class="bottom-btn" onclick="window.location.href='addsubject.php'">
+    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <p>Add Subject</p>
+  </button>
+  <button type="button" class="bottom-btn" onclick="document.getElementById('imageInput').click()" title="Add Image">
+    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+    <p>Add Image</p>
+  </button>
 </div>
 
+<input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
 </form>
 
 </div>
@@ -110,6 +117,36 @@ toolbarBtns.forEach(btn => {
   }
 });
 
+
+
+
+
+// ========== IMAGE SELECTION ==========
+let selectedImage = null;
+
+function selectImage(img) {
+  if (selectedImage) {
+    selectedImage.classList.remove('selected-image');
+  }
+  selectedImage = img;
+  if (img) {
+    img.classList.add('selected-image');
+  }
+}
+
+function deselectImage() {
+  if (selectedImage) {
+    selectedImage.classList.remove('selected-image');
+    selectedImage = null;
+  }
+}
+
+function alignImage(img, align) {
+  img.setAttribute('data-align', align);
+  // Force re-apply styles by removing and re-adding to trigger CSS
+  img.style.cssText = '';
+}
+
 // ========== SIMPLE FORMATTING WITH EXECCOMMAND ==========
 function toggleFormat(cmd) {
   editor.focus();
@@ -126,8 +163,15 @@ function toggleList(listType) {
 
 // ========== ALIGNMENT ==========
 function setAlignment(align, btn) {
-  editor.style.textAlign = align;
-  alignmentInput.value = align;
+  if (selectedImage && editor.contains(selectedImage)) {
+    // Image is selected — only align the image
+    alignImage(selectedImage, align);
+  } else {
+    // No image selected — align the text/editor
+    editor.style.textAlign = align;
+    alignmentInput.value = align;
+  }
+  // Update toolbar buttons
   toolbarBtns.forEach(b => {
     if (b.dataset.align) b.classList.remove('active');
   });
@@ -170,7 +214,36 @@ function updateFormatButtons() {
 
 editor.addEventListener('keyup', updateFormatButtons);
 editor.addEventListener('mouseup', updateFormatButtons);
-editor.addEventListener('click', updateFormatButtons);
+editor.addEventListener('click', (e) => {
+  updateFormatButtons();
+  if (e.target.tagName === 'IMG') {
+    e.preventDefault();
+    e.stopPropagation();
+    selectImage(e.target);
+    // Update toolbar to show image's alignment
+    const imgAlign = e.target.getAttribute('data-align') || 'center';
+    toolbarBtns.forEach(btn => {
+      if (btn.dataset.align) {
+        btn.classList.remove('active');
+        if (btn.dataset.align === imgAlign) {
+          btn.classList.add('active');
+        }
+      }
+    });
+  } else {
+    deselectImage();
+    // Restore toolbar to show editor's text alignment
+    const editorAlign = editor.style.textAlign || 'center';
+    toolbarBtns.forEach(btn => {
+      if (btn.dataset.align) {
+        btn.classList.remove('active');
+        if (btn.dataset.align === editorAlign) {
+          btn.classList.add('active');
+        }
+      }
+    });
+  }
+});
 
 if (window.getSelection) {
   document.addEventListener('selectionchange', () => {
@@ -180,6 +253,13 @@ if (window.getSelection) {
     }
   });
 }
+
+// Click outside editor deselects image
+document.addEventListener('click', (e) => {
+  if (!editor.contains(e.target)) {
+    deselectImage();
+  }
+});
 
 // ========== SAVE ==========
 function prepareSubmit() {
@@ -199,6 +279,79 @@ editor.addEventListener('input', checkPlaceholder);
 editor.addEventListener('blur', checkPlaceholder);
 editor.addEventListener('focus', checkPlaceholder);
 checkPlaceholder();
+
+// ========== IMAGE UPLOAD ==========
+function handleImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    img.style.maxWidth = '100%';
+    img.style.borderRadius = '8px';
+    img.style.margin = '10px 0';
+
+    editor.focus();
+
+    // Insert image at cursor position or at the end
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) {
+        range.deleteContents();
+        range.insertNode(img);
+
+        // Move cursor after image
+        range.setStartAfter(img);
+        range.setEndAfter(img);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // Add a line break after image for better UX
+        const br = document.createElement('br');
+        range.insertNode(br);
+        range.setStartAfter(br);
+        range.setEndAfter(br);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        editor.appendChild(img);
+        editor.appendChild(document.createElement('br'));
+      }
+    } else {
+      editor.appendChild(img);
+      editor.appendChild(document.createElement('br'));
+    }
+
+    checkPlaceholder();
+  };
+  reader.readAsDataURL(file);
+
+  // Reset input so same file can be selected again
+  input.value = '';
+}
+
+
+// ========== SAVE AND GO BACK ==========
+function saveAndGoBack() {
+  prepareSubmit();
+
+  const formData = new FormData(document.getElementById('noteForm'));
+
+  fetch('savingnote.php', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => {
+    window.location.href = 'notes.php';
+  })
+  .catch(error => {
+    console.error('Save failed:', error);
+    window.location.href = 'notes.php';
+  });
+}
 </script>
 </body>
 </html>

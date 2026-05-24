@@ -12,9 +12,17 @@ $type = $_POST['type'] ?? 'subject_draft';
 $note_id = $_POST['note_id'] ?? null;
 $subject_image = $_POST['subject_image'] ?? '';
 
+// Handle image removal from viewnote.php
+if ($subject_image === '__REMOVE__') {
+    $subject_image = '';
+}
+
+// Track whether subject_image was explicitly sent (covers new data AND __REMOVE__ clearing)
+$subject_image_sent = isset($_POST['subject_image']);
+
 if ($note_id) {
 
-    if ($subject_image !== '') {
+    if ($subject_image_sent) {
         $stmt = $conn->prepare("
             UPDATE notes 
             SET title=?, content=?, type=?, subject_image=? 

@@ -1,5 +1,4 @@
-  
-  * {
+* {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
@@ -222,7 +221,7 @@ body {
 .bottom-add-section p {
   margin-top: 5px;
   font-size: 14px;
-  color: black;
+  color: white;
 }
 
 #searchInput {
@@ -1071,6 +1070,21 @@ button,.file-section button{
   line-height: 1.5;
   max-height: none;
   overflow: visible;
+  box-sizing: border-box;
+}
+
+/* Lists inside fake-desc need left-align and padding */
+.fake-desc ul,
+.fake-desc ol {
+  text-align: left;
+  padding-left: 20px;
+  margin: 4px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.fake-desc li {
+  text-align: left;
 }
 
 
@@ -1958,4 +1972,145 @@ body.flashcards-page .container {
   content: "(No content)";
   color: #888;
   font-style: italic;
+}
+
+/* ============================================================
+   FORMATTING TOOLBAR (Add Subject Page)
+   ============================================================ */
+
+.formatting-toolbar {
+  position: fixed;
+  bottom: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 412px;
+  background: #f0f0f0;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 8px;
+  z-index: 100;
+  border-top: 1px solid #ddd;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Animate only when JS shows it */
+.formatting-toolbar.toolbar-visible {
+  animation: toolbarSlideUp 0.22s cubic-bezier(0.34,1.4,0.64,1) both;
+}
+
+.formatting-toolbar::-webkit-scrollbar { display: none; }
+
+@keyframes toolbarSlideUp {
+  from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.toolbar-group:not(:last-child)::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: #bbb;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  background: transparent;
+  border: none;
+  color: #333;
+  padding: 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Inria Sans', sans-serif;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.toolbar-btn:hover, .toolbar-btn:active {
+  background: rgba(0,0,0,0.08);
+}
+
+.toolbar-btn.active {
+  background: #3B8BFF;
+  color: white;
+  border-radius: 5px;
+}
+
+.toolbar-btn b { font-weight: bold; }
+.toolbar-btn i { font-style: italic; }
+.toolbar-btn u { text-decoration: underline; }
+.toolbar-btn s { text-decoration: line-through; }
+.toolbar-btn sup { font-size: 10px; vertical-align: super; }
+.toolbar-btn sub { font-size: 10px; vertical-align: sub; }
+
+/* Adjust addsubject-scroll to account for bottom bar only (toolbar is a popup) */
+.addsubject-scroll {
+  bottom: 100px;
+}
+
+/* When toolbar is open, push scroll area up */
+.addsubject-scroll.toolbar-open {
+  bottom: 155px;
+}
+
+/* Toolbar sits just above the bottom nav */
+.formatting-toolbar {
+  bottom: 108px;
+}
+
+/* Add Card / Add Image toolbar buttons */
+.toolbar-btn-addcard {
+  background: #3B8BFF;
+  border: none;
+  color: white;
+}
+.toolbar-btn-addcard:hover { background: #2a77f0; }
+
+.toolbar-btn-addimg {
+  background: #F4A261;
+  border: none;
+  color: white;
+}
+.toolbar-btn-addimg:hover { background: #e08f4e; }
+
+/* Bottom nav active item */
+.bottom-item-active svg {
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
+}
+.bottom-item-active p {
+  font-weight: bold;
+  color: white;
+}
+
+/* Bottom add section icon/label colors */
+.bottom-add-section .item p {
+  color: white;
+}
+.bottom-add-section button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
 }
