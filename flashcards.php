@@ -271,9 +271,9 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         /* ===== CORRECT ANSWER HIGHLIGHT ===== */
         .flashcards-page .choice-field.correct {
-            background: #4CAF50 !important;
+            background: #FFAE71 !important;
             color: white !important;
-            border-color: #4CAF50 !important;
+            border-color: #FFAE71 !important;
         }
 
         /* ===== ANSWER FIELD ===== */
@@ -316,7 +316,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             <a href="notes.php">Notes</a>
             <a href="analytics.php">Analytics</a>
             <a href="leaderboard.php">Leaderboard</a>
-            <a href="settings.html">Settings</a>
+            <a href="settings.php">Settings</a>
             <a href="logout.php">Log out</a>
         </div>
 

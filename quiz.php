@@ -31,9 +31,9 @@ if (!$row) exit("Quiz not found.");
 $subject_name = $row['subject_name'] ?? 'Untitled';
 
 /* =========================
-   FETCH QUIZ QUESTIONS
+   FETCH ALL QUIZ QUESTIONS
 ========================= */
-$questions = [];
+$allQuestions = [];
 $stmt = $conn->prepare("
     SELECT * FROM quiz_questions
     WHERE quiz_id = ?
@@ -61,7 +61,7 @@ while ($q = $result->fetch_assoc()) {
         }
     }
     
-    $questions[] = [
+    $allQuestions[] = [
         'question_id'    => $q['question_id'],
         'question_text'  => $q['question'],
         'question_image' => $q['question_image'] ?? '',
@@ -69,6 +69,70 @@ while ($q = $result->fetch_assoc()) {
         'choices'        => $choices,
         'correct_answer' => $correct_answer
     ];
+}
+
+$totalAll = count($allQuestions);
+
+/* ════════════════════════════════════════════
+   FETCH LAST QUIZ ATTEMPT
+════════════════════════════════════════════ */
+$last_attempt = null;
+$student_id = $_SESSION['student_id'] ?? 0;
+
+if ($student_id) {
+    $stmt = $conn->prepare("
+        SELECT correct_answers, total_questions, score_percent, answered_question_ids, wrong_question_ids
+        FROM quiz_results
+        WHERE student_id = ? AND subject_id = ? AND source_type = ?
+        ORDER BY date_taken DESC, result_id DESC
+        LIMIT 1
+    ");
+    $stmt->bind_param("iis", $student_id, $id, $type);
+    $stmt->execute();
+    $last_attempt = $stmt->get_result()->fetch_assoc();
+}
+
+/* ════════════════════════════════════════════
+   BUILD SMART RETAKE QUESTION LIST
+════════════════════════════════════════════ */
+$questions = [];
+$isSmartRetake = false;
+$wrongIds = [];
+$answeredIds = [];
+
+if ($last_attempt) {
+    if (!empty($last_attempt['wrong_question_ids'])) {
+        $wrongIds = array_map('intval', explode(',', $last_attempt['wrong_question_ids']));
+        $wrongIds = array_filter($wrongIds);
+    }
+    if (!empty($last_attempt['answered_question_ids'])) {
+        $answeredIds = array_map('intval', explode(',', $last_attempt['answered_question_ids']));
+        $answeredIds = array_filter($answeredIds);
+    }
+}
+
+$hasWrongAnswers = !empty($wrongIds);
+$hasNewQuestions = false;
+$newQuestionIds = [];
+
+foreach ($allQuestions as $q) {
+    if (!in_array($q['question_id'], $answeredIds)) {
+        $hasNewQuestions = true;
+        $newQuestionIds[] = $q['question_id'];
+    }
+}
+
+if ($hasWrongAnswers || $hasNewQuestions) {
+    $isSmartRetake = true;
+    $targetIds = array_unique(array_merge($wrongIds, $newQuestionIds));
+    
+    foreach ($allQuestions as $q) {
+        if (in_array($q['question_id'], $targetIds)) {
+            $questions[] = $q;
+        }
+    }
+} else {
+    $questions = $allQuestions;
 }
 
 $total = count($questions);
@@ -94,7 +158,6 @@ $total = count($questions);
     }
     .quiz-page::-webkit-scrollbar { display: none; }
     
-    /* Question card */
     .quiz-question-card {
       background: #fff;
       border-radius: 20px;
@@ -105,7 +168,7 @@ $total = count($questions);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     .quiz-subject-tag {
       color: #888;
@@ -125,15 +188,12 @@ $total = count($questions);
       line-height: 1.5;
       font-family: 'Itim', cursive;
     }
-    
-    /* Answer card */
     .quiz-answer-card {
       background: #fff;
       border-radius: 20px;
       padding: 20px;
       margin-bottom: 15px;
     }
-    
     .quiz-question-image {
       max-width: 100%;
       max-height: 250px;
@@ -142,8 +202,6 @@ $total = count($questions);
       display: block;
       object-fit: contain;
     }
-    
-    /* Option buttons */
     .quiz-option-btn {
       display: block;
       width: 100%;
@@ -164,8 +222,6 @@ $total = count($questions);
     .quiz-option-btn.correct { background: #4CAF50 !important; color: white !important; }
     .quiz-option-btn.wrong { background: #f44336 !important; color: white !important; }
     .quiz-option-btn.disabled { opacity: 0.7; pointer-events: none; }
-    
-    /* Text input */
     .quiz-text-input {
       width: 100%;
       padding: 15px 20px;
@@ -179,8 +235,6 @@ $total = count($questions);
     .quiz-text-input:focus { border-color: #3B8BFF; }
     .quiz-text-input.correct { border-color: #4CAF50; background: #e8f5e9; }
     .quiz-text-input.wrong { border-color: #f44336; background: #ffebee; }
-    
-    /* Dots */
     .quiz-dots {
       display: flex;
       justify-content: center;
@@ -194,15 +248,11 @@ $total = count($questions);
       background: rgba(255,255,255,0.4);
     }
     .quiz-dot.active { background: #fff; }
-    
-    /* ========== ANALYSIS SCREEN ========== */
     .quiz-analysis {
       display: none;
       flex-direction: column;
       height: 100%;
     }
-    
-    /* Score card */
     .quiz-score-card {
       background: #fff;
       border-radius: 20px;
@@ -241,7 +291,7 @@ $total = count($questions);
     }
     .quiz-score-value {
       font-size: 48px;
-      color: #333;
+      color: #000000;
       font-weight: bold;
       font-family: 'Itim', cursive;
       line-height: 1;
@@ -260,25 +310,13 @@ $total = count($questions);
       transform: translateY(-60%);
       width: 50px;
       height: 60px;
-      opacity: 0.2;
       z-index: 1;
     }
     .quiz-beaker svg {
       width: 100%;
       height: 100%;
-      fill: #F4A261;
+      fill: #FFAE71;
     }
-    
-    /* ========== HORIZONTAL SCROLL CORRECTIONS ========== */
-    .quiz-corrections-wrapper {
-      position: absolute;
-      top: 220px;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      overflow: hidden;
-    }
-
     .quiz-corrections-scroll {
       display: flex;
       gap: 15px;
@@ -291,7 +329,6 @@ $total = count($questions);
       margin: 0 -15px;
     }
     .quiz-corrections-scroll::-webkit-scrollbar { display: none; }
-
     .quiz-correction-card {
       min-width: 100%;
       max-width: 100%;
@@ -334,8 +371,6 @@ $total = count($questions);
       font-family: 'Itim', cursive;
       line-height: 1.4;
     }
-    
- 
     .correction-image {
       max-width: 100%;
       max-height: 150px;
@@ -344,9 +379,7 @@ $total = count($questions);
       display: block;
       object-fit: contain;
     }
-    
     .quiz-hidden { display: none !important; }
-    
     .quiz-empty {
       text-align: center;
       padding: 60px 20px;
@@ -355,80 +388,70 @@ $total = count($questions);
       font-size: 18px;
     }
     .quiz-empty a { color: #fff; text-decoration: underline; }
+    .retry-disabled {
+      opacity: 0.4 !important;
+      pointer-events: none !important;
+      filter: grayscale(1);
+    }
+    .retry-wrapper {
+      position: relative;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
-
-  <!-- NAV -->
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <img src="back.png" class="back-btn" onclick="goBack()">
   </nav>
 
-  <!-- SIDEBAR -->
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
-    
-   <?php
-// Fetch current user's profile image fresh from DB
-$pfp_stmt = $conn->prepare("SELECT profile_image FROM student WHERE student_id = ?");
-$pfp_stmt->bind_param("i", $student_id);
-$pfp_stmt->execute();
-$pfp_result = $pfp_stmt->get_result()->fetch_assoc();
-$profile_image = !empty($pfp_result['profile_image']) ? $pfp_result['profile_image'] : 'acc.png';
-
-// Cache bust: append timestamp so browser always fetches fresh
-$image_src = $profile_image;
-if (strpos($image_src, 'data:') === 0) {
-    // base64 — no cache bust needed, but force reload with unique session
+    <?php
+    $student_id = $_SESSION['student_id'] ?? 0;
+    $pfp_stmt = $conn->prepare("SELECT profile_image FROM student WHERE student_id = ?");
+    $pfp_stmt->bind_param("i", $student_id);
+    $pfp_stmt->execute();
+    $pfp_result = $pfp_stmt->get_result()->fetch_assoc();
+    $profile_image = !empty($pfp_result['profile_image']) ? $pfp_result['profile_image'] : 'acc.png';
     $image_src = $profile_image;
-} else {
-    $image_src .= '?t=' . time();
-}
-?>
-
-<!-- Profile Image Upload -->
-<form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
-  <label for="imageInput" style="cursor: pointer; position: relative;">
-    <img id="preview" src="<?= htmlspecialchars($image_src) ?>" 
-         style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;"
-         onerror="this.src='acc.png'">
-  </label>
-  <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
-</form>
-
+    if (strpos($image_src, 'data:') !== 0) {
+        $image_src .= '?t=' . time();
+    }
+    ?>
+    <form id="pfpForm" enctype="multipart/form-data" style="display: contents;">
+      <label for="imageInput" style="cursor: pointer; position: relative;">
+        <img id="preview" src="<?= htmlspecialchars($image_src) ?>" 
+             style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover;"
+             onerror="this.src='acc.png'">
+      </label>
+      <input type="file" id="imageInput" name="profile_image" accept="image/*" hidden onchange="uploadPFP()">
+    </form>
     <h3><?php echo $_SESSION['name'] ?? 'Guest'; ?></h3>
     <p><?php echo $_SESSION['email'] ?? ''; ?></p>
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
-    <a href="#">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="leaderboard.php">Leaderboard</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
-  <!-- OVERLAY -->
   <div class="overlay"></div>
 
-  <!-- QUIZ CONTENT -->
   <div class="quiz-page" id="quizPage">
-
-    <!-- QUIZ SCREEN -->
     <div id="quizScreen">
-      
       <?php if ($total === 0): ?>
         <div class="quiz-empty">
           <p>No quiz questions available for this subject.</p>
           <a href="subject.php?id=<?= $id ?>&type=<?= htmlspecialchars($type) ?>">Go Back</a>
         </div>
       <?php else: ?>
-
-      <!-- Question Card -->
       <div class="quiz-question-card">
         <div class="quiz-question-header">
           <span class="quiz-subject-tag"><?= htmlspecialchars($subject_name) ?></span>
@@ -436,8 +459,6 @@ if (strpos($image_src, 'data:') === 0) {
         </div>
         <div class="quiz-question-text" id="questionText">Loading...</div>
       </div>
-      
-      <!-- Answer Card -->
       <div class="quiz-answer-card">
         <div id="questionImageContainer"></div>
         <div id="optionsContainer"></div>
@@ -445,21 +466,15 @@ if (strpos($image_src, 'data:') === 0) {
           <input type="text" class="quiz-text-input" id="textAnswer" placeholder="Your answer">
         </div>
       </div>
-      
-      <!-- Dots -->
       <div class="quiz-dots" id="dotsContainer"></div>
-
       <?php endif; ?>
     </div>
 
-    <!-- ANALYSIS SCREEN -->
     <div class="quiz-analysis" id="analysisScreen">
-      
-      <!-- Score Card -->
       <div class="quiz-score-card">
         <div class="quiz-score-top">
           <span class="subject-tag"><?= htmlspecialchars($subject_name) ?></span>
-          <span class="correct-tag">Correct Answers: <span id="correctCount">0</span></span>
+          <span class="correct-tag">Correct: <span id="correctCount">0</span> / <span id="totalCount">0</span></span>
         </div>
         <div class="quiz-score-bottom">
           <h2 class="quiz-score-title">Analysis</h2>
@@ -469,43 +484,36 @@ if (strpos($image_src, 'data:') === 0) {
           <div class="quiz-score-value" id="scorePercent">0<span>%</span></div>
         </div>
       </div>
-      
-      <!-- Horizontal Scroll Corrections -->
       <div class="quiz-corrections-scroll" id="correctionsScroll"></div>
-      
     </div>
-
   </div>
 
-  <!-- Bottom Bar -->
   <div class="bottom-file-section">
     <div class="item">
       <a href="notes.php" style="text-decoration:none; color:inherit; display:flex; flex-direction:column; align-items:center;">
-        <img src="notes.png">
-        <p>Note</p>
+        <img src="notes.png"><p>Note</p>
       </a>
     </div>
     <div class="item">
       <a href="#" onclick="upload()" style="text-decoration:none; color:inherit; display:flex; flex-direction:column; align-items:center;">
-        <img src="uploaded.png">
-        <p>Uploads</p>
+        <img src="uploaded.png"><p>Uploads</p>
       </a>
     </div>
-    <div class="item">
-      <button onclick="restartQuiz()" style="background:none; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; font-family:inherit; color:inherit;">
-        <img src="retry.png">
-        <p>Retry</p>
+    <div class="item retry-wrapper" id="retryWrapper">
+      <button id="retryBtn" onclick="restartQuiz()" style="background:none; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; font-family:inherit; color:inherit;">
+        <img src="retry.png"><p id="retryText">Retry</p>
       </button>
     </div>
   </div>
-
 </div>
 
 <script src="script.js"></script>
 <script>
 const QUIZ_KEY = 'quiz_progress_<?= $id ?>_<?= $type ?>';
-
 const questions = <?= json_encode($questions) ?>;
+const lastAttempt = <?= json_encode($last_attempt ?? null) ?>;
+const isSmartRetake = <?= $isSmartRetake ? 'true' : 'false' ?>;
+const totalAll = <?= $totalAll ?>;
 const totalQuestions = questions.length;
 let currentQ = 0;
 let correctAnswers = 0;
@@ -513,64 +521,176 @@ let userAnswers = [];
 let answered = false;
 
 function saveProgress() {
-    // Local storage (keep existing behavior)
-    const data = {
-        currentQ: currentQ,
-        correctAnswers: correctAnswers,
-        userAnswers: userAnswers,
-        completed: document.getElementById('analysisScreen').style.display === 'block'
-    };
-    localStorage.setItem(QUIZ_KEY, JSON.stringify(data));
+    localStorage.setItem(QUIZ_KEY, JSON.stringify({
+        currentQ, correctAnswers, userAnswers, completed: false
+    }));
+}
+
+function saveQuizToServer() {
+    let wrongIds = [];
+    let answeredIds = [];
     
-    // If quiz is complete, save to database
-    if (data.completed) {
-        const percent = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+    userAnswers.forEach((ans, idx) => {
+        const qid = questions[idx]?.question_id ?? idx;
+        answeredIds.push(qid);
+        if (!ans.correct) wrongIds.push(qid);
+    });
+
+    let finalCorrect = correctAnswers;
+    let finalTotal = totalQuestions;
+    let finalPercent = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+    let allAnsweredIds = answeredIds.join(',');
+    let allWrongIds = wrongIds.join(',');
+
+    if (lastAttempt && totalQuestions < totalAll) {
+        const prevWrongIds = lastAttempt.wrong_question_ids ? 
+            lastAttempt.wrong_question_ids.split(',').map(Number).filter(id => id > 0) : [];
+        const prevAnsweredIds = lastAttempt.answered_question_ids ? 
+            lastAttempt.answered_question_ids.split(',').map(Number).filter(id => id > 0) : [];
         
-        fetch('api_progress.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `action=save_quiz&subject_id=<?= $id ?>&type=<?= $type ?>&correct=${correctAnswers}&total=${totalQuestions}&percent=${percent}`
-        }).then(response => response.json())
-          .then(data => {
-              if (data.success) {
-                  console.log('Quiz score saved to database');
-              }
-          })
-          .catch(err => console.error('Error saving quiz:', err));
+        const thisRetakeQuestionIds = questions.map(q => q.question_id);
+        
+        const stillWrongFromBefore = prevWrongIds.filter(pid => {
+            const idxInRetake = thisRetakeQuestionIds.indexOf(pid);
+            if (idxInRetake !== -1) {
+                return !userAnswers[idxInRetake]?.correct;
+            }
+            return true;
+        });
+        
+        const mergedWrong = [...new Set([...stillWrongFromBefore, ...wrongIds])];
+        allWrongIds = mergedWrong.join(',');
+        
+        const mergedAnswered = [...new Set([...prevAnsweredIds, ...answeredIds])];
+        allAnsweredIds = mergedAnswered.join(',');
+        
+        const fixedFromBefore = prevWrongIds.filter(pid => {
+            const idxInRetake = thisRetakeQuestionIds.indexOf(pid);
+            return idxInRetake !== -1 && userAnswers[idxInRetake]?.correct;
+        }).length;
+        
+        const prevCorrect = parseInt(lastAttempt.correct_answers) || 0;
+        finalCorrect = prevCorrect + fixedFromBefore;
+        finalTotal = totalAll;
+        finalPercent = totalAll > 0 ? Math.round((finalCorrect / totalAll) * 100) : 0;
     }
+
+    fetch('api_progress.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=save_quiz&subject_id=<?= $id ?>&type=<?= $type ?>&correct=${finalCorrect}&total=${finalTotal}&percent=${finalPercent}&answered_ids=${encodeURIComponent(allAnsweredIds)}&wrong_ids=${encodeURIComponent(allWrongIds)}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            console.log('✅ Saved:', finalPercent + '%');
+            loadOverallProgress();
+            updateRetryButtonState(allWrongIds, finalTotal, finalPercent);
+        } else {
+            console.error('❌ Save failed:', data);
+        }
+    })
+    .catch(err => console.error('❌ Error:', err));
 }
 
 function loadProgress() {
     const saved = localStorage.getItem(QUIZ_KEY);
     if (!saved) return null;
-    try {
-        return JSON.parse(saved);
-    } catch(e) {
-        return null;
-    }
+    try { return JSON.parse(saved); } catch(e) { return null; }
 }
 
 function clearProgress() {
     localStorage.removeItem(QUIZ_KEY);
 }
 
-function initQuiz() {
-    if (totalQuestions === 0) return;
+function loadOverallProgress() {
+    fetch('api_progress.php?action=get_progress&subject_id=<?= $id ?>&type=<?= $type ?>')
+    .then(r => r.json())
+    .then(data => {
+        const pct = data.percent ?? 0;
+        const bar = document.getElementById('overallProgressBar');
+        const label = document.getElementById('overallProgressLabel');
+        if (bar) bar.style.width = pct + '%';
+        if (label) label.textContent = pct + '%';
+    })
+    .catch(() => {});
+}
+
+function updateRetryButtonState(wrongIdsStr, totalAnswered, percent) {
+    const btn = document.getElementById('retryBtn');
+    const text = document.getElementById('retryText');
+    if (!btn || !text) return;
+
+    const hasWrong = wrongIdsStr && wrongIdsStr.trim() !== '';
+    const hasNewQuestions = totalAll > totalAnswered && totalAnswered > 0;
+    const canRetake = hasWrong || hasNewQuestions;
+
+    if (canRetake) {
+        btn.classList.remove('retry-disabled');
+        btn.onclick = restartQuiz;
+        
+        if (hasWrong) {
+            const wrongCount = wrongIdsStr.split(',').filter(id => id.trim() !== '').length;
+            text.textContent = `Retry (${wrongCount})`;
+        } else if (hasNewQuestions) {
+            text.textContent = `Retry (${totalAll - totalAnswered} new)`;
+        } else {
+            text.textContent = 'Retry';
+        }
+    } else {
+        btn.classList.add('retry-disabled');
+        btn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert('🎉 You already achieved a perfect score! No retakes needed.');
+            return false;
+        };
+        text.textContent = 'Retry';
+    }
+}
+
+function setupRetryButton() {
+    const hasWrong = lastAttempt && lastAttempt.wrong_question_ids ? 
+        lastAttempt.wrong_question_ids.trim() !== '' : false;
+    const lastTotal = lastAttempt ? parseInt(lastAttempt.total_questions) : 0;
     
+    updateRetryButtonState(
+        lastAttempt?.wrong_question_ids ?? '',
+        lastTotal,
+        lastAttempt ? parseInt(lastAttempt.score_percent) : 0
+    );
+}
+
+function initQuiz() {
+    loadOverallProgress();
+    setupRetryButton();
+    if (totalQuestions === 0) return;
+
     const saved = loadProgress();
+    const quizUpdated = totalQuestions > (lastAttempt ? parseInt(lastAttempt.total_questions) : 0);
+
+    if (quizUpdated) {
+        clearProgress();
+        currentQ = 0; correctAnswers = 0; userAnswers = [];
+        renderDots();
+        loadQuestion(0);
+        return;
+    }
+
     if (saved && saved.completed) {
         currentQ = saved.currentQ;
         correctAnswers = saved.correctAnswers;
         userAnswers = saved.userAnswers || [];
-        showAnalysis();
+        showAnalysis(true);
         return;
     }
+
     if (saved && saved.currentQ > 0) {
         currentQ = saved.currentQ;
         correctAnswers = saved.correctAnswers;
         userAnswers = saved.userAnswers || [];
     }
-    
+
     renderDots();
     loadQuestion(currentQ);
 }
@@ -591,16 +711,16 @@ function loadQuestion(index) {
     currentQ = index;
     answered = false;
     const q = questions[index];
-    
+
     const counter = document.getElementById('questionCounter');
     if (counter) counter.textContent = 'Question ' + (index + 1) + '/' + totalQuestions;
-    
+
     document.querySelectorAll('.quiz-dot').forEach((d, i) => {
         d.classList.toggle('active', i === index);
     });
-    
+
     document.getElementById('questionText').textContent = q.question_text;
-    
+
     const imgContainer = document.getElementById('questionImageContainer');
     imgContainer.innerHTML = '';
     if (q.question_image && q.question_image !== 'NULL' && q.question_image !== '') {
@@ -610,10 +730,10 @@ function loadQuestion(index) {
         img.onerror = () => img.style.display = 'none';
         imgContainer.appendChild(img);
     }
-    
+
     const optsContainer = document.getElementById('optionsContainer');
     const textContainer = document.getElementById('textInputContainer');
-    
+
     if (q.question_type === 'identification') {
         optsContainer.classList.add('quiz-hidden');
         textContainer.classList.remove('quiz-hidden');
@@ -621,14 +741,12 @@ function loadQuestion(index) {
         input.value = '';
         input.className = 'quiz-text-input';
         input.disabled = false;
-        input.onkeydown = (e) => {
-            if (e.key === 'Enter') submitTextAnswer();
-        };
+        input.onkeydown = (e) => { if (e.key === 'Enter') submitTextAnswer(); };
     } else {
         textContainer.classList.add('quiz-hidden');
         optsContainer.classList.remove('quiz-hidden');
         optsContainer.innerHTML = '';
-        
+
         const labels = ['A', 'B', 'C', 'D'];
         q.choices.forEach((choice, i) => {
             if (!choice.text) return;
@@ -645,12 +763,11 @@ function loadQuestion(index) {
 function selectAnswer(choiceText) {
     if (answered) return;
     answered = true;
-    
+
     const q = questions[currentQ];
     const isCorrect = choiceText === q.correct_answer;
-    
     if (isCorrect) correctAnswers++;
-    
+
     userAnswers.push({
         question: q.question_text,
         correct: isCorrect,
@@ -658,27 +775,23 @@ function selectAnswer(choiceText) {
         userAnswer: choiceText,
         questionImage: q.question_image || ''
     });
-    
+
     document.querySelectorAll('.quiz-option-btn').forEach(btn => {
         btn.disabled = true;
         btn.classList.add('disabled');
         const btnText = btn.dataset.text;
-        if (btnText === q.correct_answer) {
-            btn.classList.add('correct');
-        } else if (btnText === choiceText && !isCorrect) {
-            btn.classList.add('wrong');
-        }
+        if (btnText === q.correct_answer) btn.classList.add('correct');
+        else if (btnText === choiceText && !isCorrect) btn.classList.add('wrong');
     });
-    
+
     saveProgress();
-    
+
     setTimeout(() => {
         if (currentQ + 1 < totalQuestions) {
             loadQuestion(currentQ + 1);
             saveProgress();
         } else {
             showAnalysis();
-            saveProgress();
         }
     }, 1500);
 }
@@ -686,14 +799,13 @@ function selectAnswer(choiceText) {
 function submitTextAnswer() {
     if (answered) return;
     answered = true;
-    
+
     const input = document.getElementById('textAnswer');
     const answer = input.value.trim();
     const q = questions[currentQ];
-    
     const isCorrect = answer.toLowerCase() === (q.correct_answer || '').toLowerCase();
     if (isCorrect) correctAnswers++;
-    
+
     userAnswers.push({
         question: q.question_text,
         correct: isCorrect,
@@ -701,12 +813,12 @@ function submitTextAnswer() {
         userAnswer: answer,
         questionImage: q.question_image || ''
     });
-    
+
     input.classList.add(isCorrect ? 'correct' : 'wrong');
     input.disabled = true;
-    
+
     saveProgress();
-    
+
     setTimeout(() => {
         input.disabled = false;
         if (currentQ + 1 < totalQuestions) {
@@ -714,34 +826,58 @@ function submitTextAnswer() {
             saveProgress();
         } else {
             showAnalysis();
-            saveProgress();
         }
     }, 1500);
 }
 
-function showAnalysis() {
+function showAnalysis(fromSaved = false) {
+    if (!fromSaved) {
+        saveQuizToServer();
+        localStorage.setItem(QUIZ_KEY, JSON.stringify({
+            currentQ, correctAnswers, userAnswers, completed: true
+        }));
+    }
+
     document.getElementById('quizScreen').classList.add('quiz-hidden');
     document.getElementById('analysisScreen').style.display = 'block';
-    
-    const percent = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    document.getElementById('scorePercent').innerHTML = percent + '<span>%</span>';
-    document.getElementById('correctCount').textContent = correctAnswers;
-    
+
+    // Calculate overall percent (not just retake subset)
+    let overallCorrect = correctAnswers;
+    let overallTotal = totalAll;
+
+    if (lastAttempt && totalQuestions < totalAll) {
+        const prevWrongIds = lastAttempt.wrong_question_ids ? 
+            lastAttempt.wrong_question_ids.split(',').map(Number).filter(id => id > 0) : [];
+        const thisRetakeQuestionIds = questions.map(q => q.question_id);
+        
+        const fixedFromBefore = prevWrongIds.filter(pid => {
+            const idxInRetake = thisRetakeQuestionIds.indexOf(pid);
+            return idxInRetake !== -1 && userAnswers[idxInRetake]?.correct;
+        }).length;
+        
+        const prevCorrect = parseInt(lastAttempt.correct_answers) || 0;
+        overallCorrect = prevCorrect + fixedFromBefore;
+    } else if (!lastAttempt) {
+        overallCorrect = correctAnswers;
+    }
+
+    const displayPercent = overallTotal > 0 ? Math.round((overallCorrect / overallTotal) * 100) : 0;
+
+    document.getElementById('scorePercent').innerHTML = displayPercent + '<span>%</span>';
+    document.getElementById('correctCount').textContent = overallCorrect;
+    document.getElementById('totalCount').textContent = overallTotal;
+
     const scroll = document.getElementById('correctionsScroll');
     scroll.innerHTML = '';
-    
+
     userAnswers.forEach((ans, i) => {
         if (ans.correct) return;
-        
         const card = document.createElement('div');
         card.className = 'quiz-correction-card';
-        
-        // Build image HTML if question had an image
         let imageHtml = '';
         if (ans.questionImage && ans.questionImage !== 'NULL' && ans.questionImage !== '') {
-            imageHtml = `<img src="${ans.questionImage}" class="correction-image" alt="Question image" onerror="this.style.display='none'">`;
+            imageHtml = `<img src="${ans.questionImage}" class="correction-image" onerror="this.style.display='none'">`;
         }
-        
         card.innerHTML = `
             <span class="corrections-label">Corrections:</span>
             ${imageHtml}
@@ -751,7 +887,7 @@ function showAnalysis() {
         `;
         scroll.appendChild(card);
     });
-    
+
     if (scroll.children.length === 0) {
         scroll.innerHTML = '<div style="color:#fff; text-align:center; padding:40px; font-family:Itim,cursive;">Perfect score! No corrections needed.</div>';
     }
@@ -759,12 +895,7 @@ function showAnalysis() {
 
 function restartQuiz() {
     clearProgress();
-    currentQ = 0;
-    correctAnswers = 0;
-    userAnswers = [];
-    document.getElementById('analysisScreen').style.display = 'none';
-    document.getElementById('quizScreen').classList.remove('quiz-hidden');
-    initQuiz();
+    window.location.reload();
 }
 
 function goBack() {

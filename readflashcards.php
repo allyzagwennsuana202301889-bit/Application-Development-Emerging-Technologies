@@ -29,32 +29,32 @@ function handleBase64Image($base64Data, $existingImage = '') {
     if (empty($base64Data) || $base64Data === $existingImage) {
         return ['path' => $existingImage];
     }
-    
+
     // Validate it's a base64 image
     if (!preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
         return ['error' => 'Invalid image data format.'];
     }
-    
+
     $imageType = strtolower($matches[1]);
     $allowedTypes = ['jpeg', 'jpg', 'png', 'gif', 'webp'];
-    
+
     if (!in_array($imageType, $allowedTypes)) {
         return ['error' => 'Invalid image type. Only JPEG, PNG, GIF, WEBP allowed.'];
     }
-    
+
     // Decode base64
     $base64String = preg_replace('/^data:image\/\w+;base64,/', '', $base64Data);
     $imageData = base64_decode($base64String);
-    
+
     if ($imageData === false) {
         return ['error' => 'Failed to decode image data.'];
     }
-    
+
     // Check size (max 5MB decoded)
     if (strlen($imageData) > 5 * 1024 * 1024) {
         return ['error' => 'Image too large. Max 5MB.'];
     }
-    
+
     return ['path' => $base64Data];
 }
 
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $choices = $_POST['choices'] ?? '[]';
         $existing_image = $_POST['question_image'] ?? '';
         $base64_image = $_POST['question_image_base64'] ?? '';
-        
+
         // Handle base64 image
         $imageResult = handleBase64Image($base64_image, $existing_image);
         if (isset($imageResult['error'])) {
@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $choices = $_POST['choices'] ?? '[]';
         $existing_image = $_POST['question_image'] ?? '';
         $base64_image = $_POST['question_image_base64'] ?? '';
-        
+
         // Handle base64 image
         $imageResult = handleBase64Image($base64_image, $existing_image);
         if (isset($imageResult['error'])) {
@@ -200,8 +200,8 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         }
 
         .flashcards-read-page .back-btn-icon {
-            width: 28px;
-            height: 28px;
+            width: 50px;
+            height: 50px;
             cursor: pointer;
         }
 
@@ -551,7 +551,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         }
 
         .flashcards-read-page .choice-field.correct {
-            background: #28a745;
+            background: #FFAE71;
             color: white;
         }
 
@@ -644,7 +644,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         }
 
         .flashcards-read-page .choice-btn.correct {
-            background: #28a745;
+            background: #FFAE71;
             color: white;
         }
 
@@ -695,14 +695,14 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         }
 
         .flashcards-read-page .item img {
-            width: 32px;
-            height: 32px;
+            width: 80px;
+            height: 80px;
             object-fit: contain;
         }
 
         .flashcards-read-page .item p {
-            font-size: 12px;
-            color: #1a1a2e;
+            font-size: 16px;
+            color: white;
             font-family: 'Inria Sans', sans-serif;
             margin: 0;
         }
@@ -743,7 +743,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
 
         .flashcards-read-page .edit-mode .choice-btn.correct {
             background: #d4edda;
-            border: 2px dashed #28a745;
+            border: 2px dashed #FFAE71;
             color: #155724;
         }
 
@@ -787,7 +787,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
                 <img src="FAQIcon.png" class="help" alt="Help">
                 <img src="back.png" class="back" onclick="toggleSidebar()" alt="Close">
             </div>
-            
+
     <?php
 // Fetch current user's profile image fresh from DB
 $pfp_stmt = $conn->prepare("SELECT profile_image FROM student WHERE student_id = ?");
@@ -820,9 +820,9 @@ if (strpos($image_src, 'data:') === 0) {
             <p><?php echo $useremail; ?></p>
             <a href="homepage.php">Home</a>
             <a href="notes.php">Notes</a>
-            <a href="#">Analytics</a>
-            <a href="#">Leaderboard</a>
-            <a href="settings.html">Settings</a>
+            <a href="analytics.php">Analytics</a>
+            <a href="leaderboard.php">Leaderboard</a>
+            <a href="settings.php">Settings</a>
             <a href="logout.php">Log out</a>
         </div>
 
@@ -1165,7 +1165,7 @@ if (strpos($image_src, 'data:') === 0) {
                 showToast('Enter edit mode first');
                 return;
             }
-            
+
             if (isAdding) {
                 showToast('Finish adding current question first');
                 return;
@@ -1298,8 +1298,9 @@ if (strpos($image_src, 'data:') === 0) {
             const editLabel = document.getElementById('editLabel');
 
             if (!isEditMode) {
+                // ENTERING EDIT MODE
                 isEditMode = true;
-                editIcon.src = 'save.png';
+                editIcon.src = 'Edit.png';
                 editLabel.textContent = 'Save';
 
                 const slides = document.querySelectorAll('.question-slide');
@@ -1315,10 +1316,14 @@ if (strpos($image_src, 'data:') === 0) {
                 showToast('Edit mode ON - tap image to replace, tap choice to set correct');
 
             } else {
+                // EXITING EDIT MODE (saving)
                 if (isAdding) {
+                    // Only submit new card if we're currently adding one
                     submitNewCard();
                     return;
                 }
+
+                // For existing cards, just save and exit
                 saveCurrentCard();
             }
         }
@@ -1333,10 +1338,18 @@ if (strpos($image_src, 'data:') === 0) {
 
         function saveCurrentCard() {
             const slide = document.querySelector(`.question-slide[data-idx="${currentIndex}"]`);
-            if (!slide) return;
+            if (!slide) {
+                // No slide found — just exit edit mode
+                isEditMode = false;
+                document.getElementById('editIcon').src = 'edit.png';
+                document.getElementById('editLabel').textContent = 'Edit';
+                showToast('Edit mode off');
+                renderSlides();
+                return;
+            }
 
             const qId = slide.getAttribute('data-qid');
-            const qText = slide.querySelector('[data-field="question"]')?.value || '';
+            const qText = slide.querySelector('[data-field="question"]')?.value?.trim() || '';
             const choiceBtns = slide.querySelectorAll('.choice-btn');
             const ansField = slide.querySelector('[data-field="answer"]');
             const questionImage = getImageData(currentIndex);
@@ -1397,15 +1410,27 @@ if (strpos($image_src, 'data:') === 0) {
 
         // ===== DELETE =====
         function deleteCard(index) {
-            if (cards.length <= 1) {
-                showToast("Can't delete the only question");
-                return;
-            }
+            // REMOVED: No longer blocking deletion of the last question
 
             if (!confirm('Delete Question ' + (index + 1) + '?')) return;
 
             const slide = document.querySelector(`.question-slide[data-idx="${index}"]`);
             const qId = slide?.getAttribute('data-qid');
+
+            // If it's a new unsaved card, just remove locally
+            if (cards[index] && cards[index].isNew) {
+                cards.splice(index, 1);
+                isAdding = false;
+                if (currentIndex >= cards.length) currentIndex = Math.max(0, cards.length - 1);
+                if (isEditMode) {
+                    isEditMode = false;
+                    document.getElementById('editIcon').src = 'edit.png';
+                    document.getElementById('editLabel').textContent = 'Edit';
+                }
+                renderSlides();
+                showToast('Deleted!');
+                return;
+            }
 
             const formData = new FormData();
             formData.append('action', 'delete_flashcard');

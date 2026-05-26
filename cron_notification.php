@@ -4,6 +4,15 @@ include 'database.php';
 
 $now = date('Y-m-d H:i:s');
 
+// Helper: Check if user wants notifications
+function userWantsNotifications($conn, $student_id) {
+    $check = $conn->prepare("SELECT notifications_enabled FROM student WHERE student_id = ?");
+    $check->bind_param("i", $student_id);
+    $check->execute();
+    $result = $check->get_result()->fetch_assoc();
+    return ($result['notifications_enabled'] ?? 1) == 1;
+}
+
 // =========================
 // 1. UPDATES SECTION
 // =========================
@@ -20,7 +29,6 @@ $stmt->execute();
 $results = $stmt->get_result();
 
 while ($sub = $results->fetch_assoc()) {
-    // Notify all students who have this subject
     $users = $conn->prepare("
         SELECT DISTINCT student_id FROM student_subjects 
         WHERE subject_id = ? AND source_type = 'subjects'
@@ -32,8 +40,10 @@ while ($sub = $results->fetch_assoc()) {
     while ($user = $user_list->fetch_assoc()) {
         $uid = $user['student_id'];
         if ($uid == $sub['updater_id']) continue;
+        
+        // CHECK: Skip if notifications disabled
+        if (!userWantsNotifications($conn, $uid)) continue;
 
-        // Check if already notified
         $check = $conn->prepare("
             SELECT notification_id FROM notification 
             WHERE student_id = ? AND subject_id = ? AND type = 'subject_updated'
@@ -74,6 +84,10 @@ while ($quiz = $quizzes->fetch_assoc()) {
 
     while ($user = $user_list->fetch_assoc()) {
         $uid = $user['student_id'];
+        
+        // CHECK: Skip if notifications disabled
+        if (!userWantsNotifications($conn, $uid)) continue;
+
         $title = 'New quiz: ' . $quiz['subject_name'];
         $msg = 'A new quiz has been added to ' . $quiz['subject_name'];
         $url = 'quiz.php?id=' . $quiz['subject_id'] . '&type=subjects';
@@ -87,7 +101,7 @@ while ($quiz = $quizzes->fetch_assoc()) {
     }
 }
 
-// C. User uploaded a subject for others to try
+// C. User uploaded a subject
 $upload_stmt = $conn->prepare("
     SELECT s.subject_id, s.subject_name, s.student_id as uploader_id, st.name as uploader_name
     FROM subjects s
@@ -107,6 +121,9 @@ while ($up = $uploads->fetch_assoc()) {
 
     while ($stu = $students->fetch_assoc()) {
         $uid = $stu['student_id'];
+
+        // CHECK: Skip if notifications disabled
+        if (!userWantsNotifications($conn, $uid)) continue;
 
         $check = $conn->prepare("
             SELECT notification_id FROM notification 
@@ -151,6 +168,9 @@ while ($note = $notes->fetch_assoc()) {
     while ($stu = $students->fetch_assoc()) {
         $uid = $stu['student_id'];
 
+        // CHECK: Skip if notifications disabled
+        if (!userWantsNotifications($conn, $uid)) continue;
+
         $check = $conn->prepare("
             SELECT notification_id FROM notification 
             WHERE student_id = ? AND subject_id = ? AND type = 'subject_uploaded'
@@ -177,7 +197,7 @@ while ($note = $notes->fetch_assoc()) {
 // 2. MISSING SECTION
 // =========================
 
-// A. No progress in 7 days - FIXED SQL
+// A. No progress in 7 days
 $progress_stmt = $conn->prepare("
     SELECT DISTINCT ss.student_id, ss.subject_id, s.subject_name
     FROM student_subjects ss
@@ -197,6 +217,11 @@ $progress_stmt->execute();
 $no_progress = $progress_stmt->get_result();
 
 while ($row = $no_progress->fetch_assoc()) {
+    $uid = $row['student_id'];
+    
+    // CHECK: Skip if notifications disabled
+    if (!userWantsNotifications($conn, $uid)) continue;
+
     $title = 'Keep going with ' . $row['subject_name'];
     $msg = 'You haven\'t made progress in ' . $row['subject_name'] . '. Continue studying!';
     $url = 'subject.php?id=' . $row['subject_id'] . '&type=subjects';
@@ -205,11 +230,11 @@ while ($row = $no_progress->fetch_assoc()) {
         INSERT INTO notification (student_id, subject_id, type, section, title, message, action_url, status, date_sent)
         VALUES (?, ?, 'no_progress', 'missing', ?, ?, ?, 'unread', ?)
     ");
-    $ins->bind_param("iissss", $row['student_id'], $row['subject_id'], $title, $msg, $url, $now);
+    $ins->bind_param("iissss", $uid, $row['subject_id'], $title, $msg, $url, $now);
     $ins->execute();
 }
 
-// B. No quiz attempted in 7 days - FIXED SQL
+// B. No quiz attempted in 7 days
 $quiz_missing = $conn->prepare("
     SELECT DISTINCT ss.student_id, ss.subject_id, s.subject_name
     FROM student_subjects ss
@@ -228,6 +253,11 @@ $quiz_missing->execute();
 $no_quiz = $quiz_missing->get_result();
 
 while ($row = $no_quiz->fetch_assoc()) {
+    $uid = $row['student_id'];
+    
+    // CHECK: Skip if notifications disabled
+    if (!userWantsNotifications($conn, $uid)) continue;
+
     $title = 'Try the quiz for ' . $row['subject_name'];
     $msg = 'Test your knowledge with the ' . $row['subject_name'] . ' quiz!';
     $url = 'quiz.php?id=' . $row['subject_id'] . '&type=subjects';
@@ -236,7 +266,7 @@ while ($row = $no_quiz->fetch_assoc()) {
         INSERT INTO notification (student_id, subject_id, type, section, title, message, action_url, status, date_sent)
         VALUES (?, ?, 'no_quiz', 'missing', ?, ?, ?, 'unread', ?)
     ");
-    $ins->bind_param("iissss", $row['student_id'], $row['subject_id'], $title, $msg, $url, $now);
+    $ins->bind_param("iissss", $uid, $row['subject_id'], $title, $msg, $url, $now);
     $ins->execute();
 }
 

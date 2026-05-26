@@ -19,7 +19,11 @@ $sql_added = "
 $stmt = $conn->prepare($sql_added);
 $stmt->bind_param("i", $student_id);
 $stmt->execute();
-$added_subjects = $stmt->get_result();
+$added_subjects_raw = $stmt->get_result();
+$added_subjects = [];
+while ($row = $added_subjects_raw->fetch_assoc()) {
+    $added_subjects[] = $row;
+}
 
 // 2. Get user's added subjects from NOTES table (THIS WAS MISSING!)
 $sql_added_notes = "
@@ -40,7 +44,11 @@ $sql_added_notes = "
 $stmt_notes = $conn->prepare($sql_added_notes);
 $stmt_notes->bind_param("i", $student_id);
 $stmt_notes->execute();
-$added_notes = $stmt_notes->get_result();
+$added_notes_raw = $stmt_notes->get_result();
+$added_notes = [];
+while ($row = $added_notes_raw->fetch_assoc()) {
+    $added_notes[] = $row;
+}
 
 // 3. Get preset subjects not yet added
 $sql_presets = "
@@ -56,7 +64,97 @@ $sql_presets = "
 $stmt2 = $conn->prepare($sql_presets);
 $stmt2->bind_param("i", $student_id);
 $stmt2->execute();
-$presets = $stmt2->get_result();
+$presets_raw = $stmt2->get_result();
+$presets = [];
+while ($row = $presets_raw->fetch_assoc()) {
+    $presets[] = $row;
+}
+
+/* ════════════════════════════════════════════
+   RECALCULATE PROGRESS ON PAGE LOAD
+   Ensures progress updates when quiz questions are added
+════════════════════════════════════════════ */
+function recalcSubjectProgress($conn, $student_id, $subject_id, $source_type) {
+    $stmt = $conn->prepare("
+        SELECT COUNT(*) as read_count FROM reading_progress
+        WHERE student_id = ? AND subject_id = ? AND source_type = ? AND completed = 1
+    ");
+    $stmt->bind_param("iis", $student_id, $subject_id, $source_type);
+    $stmt->execute();
+    $read_count = $stmt->get_result()->fetch_assoc()['read_count'] ?? 0;
+
+    if ($source_type === 'notes') {
+        $stmt = $conn->prepare("SELECT content FROM notes WHERE note_id = ?");
+    } else {
+        $stmt = $conn->prepare("SELECT description FROM subjects WHERE subject_id = ?");
+    }
+    $stmt->bind_param("i", $subject_id);
+    $stmt->execute();
+    $desc = $stmt->get_result()->fetch_assoc();
+    $raw = '';
+    if ($desc !== null) {
+        $raw = $desc['content'] ?? $desc['description'] ?? '';
+    }
+    $lessons = json_decode($raw ?: '[]', true);
+    $total_lessons = (is_array($lessons) && count($lessons) > 0) ? count($lessons) : 1;
+    $reading_percent = $total_lessons > 0 ? round(($read_count / $total_lessons) * 100) : 0;
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as q_count FROM quiz_questions WHERE quiz_id = ?");
+    $stmt->bind_param("i", $subject_id);
+    $stmt->execute();
+    $current_quiz_total = (int)($stmt->get_result()->fetch_assoc()['q_count'] ?? 0);
+    $has_quiz = $current_quiz_total > 0;
+
+    if (!$has_quiz) {
+        $overall = $reading_percent;
+        $quiz_percent = 0;
+    } else {
+        $stmt = $conn->prepare("
+            SELECT score_percent, total_questions, correct_answers
+            FROM quiz_results
+            WHERE student_id = ? AND subject_id = ? AND source_type = ?
+            ORDER BY date_taken DESC, result_id DESC
+            LIMIT 1
+        ");
+        $stmt->bind_param("iis", $student_id, $subject_id, $source_type);
+        $stmt->execute();
+        $last_result = $stmt->get_result()->fetch_assoc();
+        $last_total = (int)($last_result['total_questions'] ?? 0);
+        $last_correct = (int)($last_result['correct_answers'] ?? 0);
+        $last_percent = (int)($last_result['score_percent'] ?? 0);
+
+        if ($current_quiz_total > $last_total && $last_total > 0) {
+            $quiz_percent = round(($last_correct / $current_quiz_total) * 100);
+        } else {
+            $quiz_percent = $last_percent;
+        }
+        $overall = round(($reading_percent * 0.4) + ($quiz_percent * 0.6));
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO subject_progress
+            (student_id, subject_id, source_type, reading_percent, quiz_percent, overall_percent)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            reading_percent = VALUES(reading_percent),
+            quiz_percent    = VALUES(quiz_percent),
+            overall_percent = VALUES(overall_percent)
+    ");
+    $stmt->bind_param("iisiii", $student_id, $subject_id, $source_type,
+                                $reading_percent, $quiz_percent, $overall);
+    $stmt->execute();
+}
+
+// Recalculate for all subjects
+foreach ($added_subjects as $row) {
+    recalcSubjectProgress($conn, $student_id, $row['subject_id'], 'subjects');
+}
+foreach ($added_notes as $row) {
+    recalcSubjectProgress($conn, $student_id, $row['subject_id'], 'notes');
+}
+foreach ($presets as $row) {
+    recalcSubjectProgress($conn, $student_id, $row['subject_id'], 'subjects');
+}
 ?>
 
 <!DOCTYPE html>
@@ -81,7 +179,7 @@ $presets = $stmt2->get_result();
   <!-- SIDEBAR -->
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
     
@@ -121,7 +219,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -130,16 +228,16 @@ if (strpos($image_src, 'data:') === 0) {
   <!-- SUBJECT LIST -->
 <?php
 $has_content =
-    ($added_subjects && $added_subjects->num_rows > 0) ||
-    ($added_notes && $added_notes->num_rows > 0) ||
-    ($presets && $presets->num_rows > 0);
+    count($added_subjects) > 0 ||
+    count($added_notes) > 0 ||
+    count($presets) > 0;
 
 if ($has_content) {
  echo "<div class='subjects-container'>";
 
 /* 1. USER ADDED SUBJECTS (from subjects table) */
-if ($added_subjects && $added_subjects->num_rows > 0) {
-  while ($row = $added_subjects->fetch_assoc()) {
+if (count($added_subjects) > 0) {
+  foreach ($added_subjects as $row) {
     // Get real progress for this subject
     $prog_stmt = $conn->prepare("
         SELECT overall_percent FROM subject_progress 
@@ -153,7 +251,8 @@ if ($added_subjects && $added_subjects->num_rows > 0) {
     
     echo "
     <div class='subject-card' onclick='goToSubject(" . (int)$row['subject_id'] . ")'>
-      <div class='download-icon'>
+      <button class='remove-subject-btn' onclick='event.stopPropagation(); removeSubject(" . (int)$row['subject_id'] . ", \"subjects\")'>✕</button>
+      <div class='download-icon' onclick='event.stopPropagation(); toggleDownload(this)'>
         <img src='offlinemode.png'>
       </div>
       <div class='card-left'>
@@ -173,8 +272,8 @@ if ($added_subjects && $added_subjects->num_rows > 0) {
 }
 
 /* 2. USER ADDED NOTES (from notes table) - THIS WAS MISSING! */
-if ($added_notes && $added_notes->num_rows > 0) {
-  while ($row = $added_notes->fetch_assoc()) {
+if (count($added_notes) > 0) {
+  foreach ($added_notes as $row) {
     // Get real progress for this note/subject
     $prog_stmt = $conn->prepare("
         SELECT overall_percent FROM subject_progress 
@@ -186,9 +285,10 @@ if ($added_notes && $added_notes->num_rows > 0) {
     $prog = $prog_stmt->get_result()->fetch_assoc();
     $progress_value = $prog['overall_percent'] ?? 0;
     
-    echo "
+   echo "
     <div class='subject-card' onclick='goToCustomSubject(" . (int)$row['subject_id'] . ", \"notes\")'>
-      <div class='download-icon'>
+      <button class='remove-subject-btn' onclick='event.stopPropagation(); removeSubject(" . (int)$row['subject_id'] . ", \"notes\")'>✕</button>
+      <div class='download-icon' onclick='event.stopPropagation(); toggleDownload(this)'>
         <img src='offlinemode.png'>
       </div>
       <div class='card-left'>
@@ -208,8 +308,8 @@ if ($added_notes && $added_notes->num_rows > 0) {
 }
 
 /* 3. PRESETS */
-if ($presets && $presets->num_rows > 0) {
-  while ($row = $presets->fetch_assoc()) {
+if (count($presets) > 0) {
+  foreach ($presets as $row) {
     // Get real progress for this preset
     $prog_stmt = $conn->prepare("
         SELECT overall_percent FROM subject_progress 
@@ -221,9 +321,9 @@ if ($presets && $presets->num_rows > 0) {
     $prog = $prog_stmt->get_result()->fetch_assoc();
     $progress_value = $prog['overall_percent'] ?? 0;
     
-    echo "
+ echo "
     <div class='subject-card' onclick='goToSubject(" . (int)$row['subject_id'] . ")'>
-      <div class='download-icon'>
+      <div class='download-icon' onclick='event.stopPropagation(); toggleDownload(this)'>
         <img src='offlinemode.png'>
       </div>
       <div class='card-left'>
@@ -279,6 +379,61 @@ echo "</div>";
 </div>
 
 <script src="script.js"></script>
+
+
+<script>
+/* ================= OFFLINE DOWNLOAD SIMULATION ================= */
+function toggleDownload(icon) {
+  const img = icon.querySelector('img');
+  if (!img) return;
+
+  const isDownloaded = img.getAttribute('data-downloaded') === 'true';
+
+  if (!isDownloaded) {
+    img.src = 'bluecheck.png';
+    img.setAttribute('data-downloaded', 'true');
+    img.title = 'Downloaded for offline';
+    showToast('Downloaded for offline reading');
+  } else {
+    img.src = 'offlinemode.png';
+    img.setAttribute('data-downloaded', 'false');
+    img.title = 'Download for offline';
+    showToast('Removed from offline');
+  }
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('toastMsg');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toastMsg';
+    toast.style.cssText = `
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #333;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 300;
+      opacity: 0;
+      transition: 0.3s;
+      pointer-events: none;
+      font-family: 'Inria Sans', sans-serif;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-20px)';
+  }, 2500);
+}
+</script>
 
 </body>
 </html>

@@ -162,7 +162,7 @@ body {
 /* ========== NOTIFICATION PAGE ========== */
 
 .top-bars {
-    height: 55px;
+     height: 100px;
     background: #3B8BFF;
     display: flex;
     align-items: center;
@@ -179,10 +179,10 @@ body {
 }
 
 .icon {
-    width: 28px;
-    height: 28px;
+     width: 60px;
+    height: 60px;
     object-fit: contain;
-    filter: brightness(0) invert(1);
+    filter: brightness(0);
     cursor: pointer;
 }
 
@@ -199,29 +199,31 @@ body {
     border-radius: 8px;
     min-width: 16px;
     text-align: center;
+    display: none; /* hide when empty */
 }
 
 /* ========== TABS ========== */
 .tabs {
-    display: flex;
-    justify-content: space-between;
+   display: flex;
+    justify-content: space-around;
     background: #3B8BFF;
-    padding: 0 40px;
+    padding: 0 20px;
     flex-shrink: 0;
 }
 
 .tab-btn {
-    color: rgba(255,255,255,0.7);
-    font-size: 20px;
+    color: rgba(255,255,255,0.6);
+    font-size: 24px;
+    font-style: italic;
     cursor: pointer;
-    padding-bottom: 10px;
+    padding: 8px 20px 12px;
     transition: color 0.3s;
     user-select: none;
-    font-style: italic;
 }
 
 .tab-btn.active {
-    color: white;
+      color: white;
+    font-weight: bold;
 }
 
 /* Tab underline indicator */
@@ -268,14 +270,11 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 12px 15px;
+    padding: 16px 15px;
     cursor: pointer;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e0e0e0;
     background: white;
     position: relative;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
 }
 
 /* UNREAD = BOLD */
@@ -331,9 +330,9 @@ body {
 
 /* Icon circle */
 .notif-icon {
-    width: 45px;
-    height: 45px;
-    min-width: 45px;
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -390,13 +389,13 @@ body {
 
 /* ========== BOTTOM ACTIONS BAR ========== */
 .bottom-actions {
-    height: 75px;
+    height: 100px;
     background: #d3d3d3;
     display: flex;
     justify-content: space-around;
     align-items: center;
     flex-shrink: 0;
-    border-radius: 15px 15px 0 0;
+
 }
 
 .bottom-actions.hidden {
@@ -416,13 +415,13 @@ body {
 }
 
 .action img {
-    width: 26px;
-    height: 26px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
 }
 
 .action p {
-    font-size: 13px;
+   font-size: 14px;
     color: #333;
     font-style: italic;
 }

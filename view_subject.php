@@ -86,7 +86,7 @@ $is_owner = ($uploader_id === $student_id);
 if ($is_preset) {
     $has_access = true;
 } elseif ($source_type === 'notes') {
-    $has_access = true; // Published notes (type='subject') are viewable by all
+    $has_access = true;
 } else {
     $has_access = $is_owner || $is_preset;
 }
@@ -152,7 +152,71 @@ if (empty($cards)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($subject['subject_name']) ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+    /* ============================================
+       LIST FIX - bullets/numbers stay with text
+       ============================================ */
+    .fake-desc ul,
+    .fake-desc ol {
+        list-style-position: inside;
+        padding-left: 0;
+        margin-left: 0;
+    }
+    .fake-desc li {
+        list-style-position: inside;
+        display: list-item;
+    }
+    
+    /* Ensure font consistency */
+    .fake-desc,
+    .fake-desc * {
+        font-family: 'Itim', cursive !important;
+    }
+    
+    /* Images in descriptions */
+    .desc-img {
+        max-width: 100%;
+        border-radius: 6px;
+        margin: 6px 0;
+        display: block;
+    }
+    
+    /* Card image styling */
+    .card-image-preview {
+        max-width: 100%;
+        border-radius: 8px;
+        display: block;
+        margin: 0 auto;
+    }
+
+    /* ============================================
+       ADD TO LIST BUTTON - black box style
+       ============================================ */
+    .add-list-btn {
+        background: #000000;
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 24px;
+        font-size: 15px;
+        font-family: 'Inria Sans', sans-serif;
+        font-style: italic;
+        cursor: pointer;
+        display: block;
+        text-align: left;
+        line-height: 1.3;
+        min-width: 150px;
+    }
+
+    .add-list-btn:disabled {
+        background: #333333;
+        color: #aaaaaa;
+        cursor: not-allowed;
+    }
+
+    </style>
 </head>
 <body>
 
@@ -166,7 +230,7 @@ if (empty($cards)) {
 
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
   <?php
@@ -180,7 +244,6 @@ $profile_image = !empty($pfp_result['profile_image']) ? $pfp_result['profile_ima
 // Cache bust: append timestamp so browser always fetches fresh
 $image_src = $profile_image;
 if (strpos($image_src, 'data:') === 0) {
-    // base64 — no cache bust needed, but force reload with unique session
     $image_src = $profile_image;
 } else {
     $image_src .= '?t=' . time();
@@ -201,9 +264,9 @@ if (strpos($image_src, 'data:') === 0) {
     <p><?php echo $_SESSION['email'] ?? 'No Email'; ?></p>
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
-    <a href="#">Analytics</a>
-    <a href="#">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="analytics.php">Analytics</a>
+    <a href="leaderboard.php">Leaderboard</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -234,12 +297,18 @@ if (strpos($image_src, 'data:') === 0) {
           $cardImg = (!empty($card['img']) && $card['img'] !== 'file.png') ? $card['img'] : 'file.png';
       ?>
       <div class="subject-main-card">
+          <?php if ($cardImg !== 'file.png'): ?>
           <label class="card-image-label">
             <img src="<?= htmlspecialchars($cardImg) ?>" class="card-image-preview" onerror="this.src='file.png'">
           </label>
+          <?php endif; ?>
+          
+          <?php if ($cardTitle): ?>
           <input type="text" class="card-title" value="<?= htmlspecialchars($cardTitle) ?>" readonly>
+          <?php endif; ?>
+          
           <div class="fake-desc" contenteditable="false">
-            <?= nl2br(htmlspecialchars($cardDesc)) ?>
+            <?= $cardDesc ?>
           </div>
       </div>
       <?php endforeach; ?>
@@ -256,21 +325,19 @@ if (strpos($image_src, 'data:') === 0) {
 
   <!-- Bottom bar with Add to List button -->
   <div class="bottom-file-section">
-    <div class="item">
-      <button onclick="addToMyList(<?= (int)$subject['subject_id'] ?>, '<?= $source_type ?>')" 
-              class="study-btn" 
-              id="addBtn"
-              <?= $already_added ? 'disabled' : '' ?>>
-        <?= $already_added ? 'Already in List' : '+ Add to My List' ?>
-      </button>
-      <p id="addedMsg" style="display:none; color: green; font-size: 12px;">Added!</p>
-    </div>
-    <div class="item">
-      <button onclick="study()" style="background:none;border:none;">
-        <img src="back.png">
-      </button>
-      <p>Back</p>
-    </div>
+      <div class="item" style="align-items: flex-start;">
+          <button class="add-list-btn" 
+                  id="addBtn"
+                  data-subject-id="<?= (int)$subject['subject_id'] ?>"
+                  data-source-type="<?= htmlspecialchars($source_type) ?>"
+                  <?= $already_added ? 'disabled' : '' ?>>
+              <?= $already_added ? 'Already in List' : 'Add subject to list' ?>
+          </button>
+      </div>
+      <div class="item" onclick="study()">
+          <img src="back.png" style="width:36px;height:36px;">
+          <p>Back</p>
+      </div>
   </div>
 
 </div>
@@ -281,31 +348,44 @@ function goBack() {
   window.history.back();
 }
 
-function addToMyList(subjectId, sourceType) {
-  fetch("add_to_list.php", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body:
-      "subject_id=" + subjectId +
-      "&source_type=" + sourceType
-  })
-  .then(res => res.text())
-  .then(data => {
-    if (data === "added" || data === "already") {
-      document.getElementById('addBtn').disabled = true;
-      document.getElementById('addBtn').textContent = 'Already in List';
-      document.getElementById('addedMsg').style.display = 'block';
-    } else {
-      alert('Error: ' + data);
-    }
-  })
-  .catch(err => {
-    console.error('Add failed:', err);
-    alert('Failed to add. Try again.');
-  });
+function study() {
+  window.history.back();
 }
+
+// Attach click handler to Add button
+document.getElementById('addBtn').addEventListener('click', function() {
+    if (this.disabled) return;
+    
+    const subjectId = this.getAttribute('data-subject-id');
+    const sourceType = this.getAttribute('data-source-type');
+    
+    console.log('Adding to list:', subjectId, sourceType);
+    
+    fetch("add_to_list.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "subject_id=" + encodeURIComponent(subjectId) + "&source_type=" + encodeURIComponent(sourceType)
+    })
+    .then(res => {
+        console.log('Response status:', res.status);
+        return res.text();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.trim() === "added" || data.trim() === "already") {
+            document.getElementById('addBtn').disabled = true;
+            document.getElementById('addBtn').textContent = 'Already in List';
+        } else {
+            alert('Server error: ' + data);
+        }
+    })
+    .catch(err => {
+        console.error('Fetch error:', err);
+        alert('Failed to add. Check console for details.');
+    });
+});
 </script>
 
 </body>

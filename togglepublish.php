@@ -14,6 +14,15 @@ if (!$note_id || !$type) {
     die("Invalid request");
 }
 
+// Helper: Check if user wants notifications
+function userWantsNotifications($conn, $student_id) {
+    $check = $conn->prepare("SELECT notifications_enabled FROM student WHERE student_id = ?");
+    $check->bind_param("i", $student_id);
+    $check->execute();
+    $result = $check->get_result()->fetch_assoc();
+    return ($result['notifications_enabled'] ?? 1) == 1;
+}
+
 /* ===============================
    PUBLISH — Notify ALL students except self
 ================================= */
@@ -45,11 +54,14 @@ if ($type === "subject") {
 
         $title = $note['title'] ?? 'Untitled';
         $notifTitle = "Subject Published: " . $title;
-        $notifMsg = "\"" . $title . "\" is now live. Check out the latest content!";
+        $notifMsg = "\"" . $title . "\"  subject has been published! Check out its content!";
         $actionUrl = "subject.php?id=" . $note_id . "&type=notes";
 
         while ($row = $allStudents->fetch_assoc()) {
             $targetStudent = $row['student_id'];
+
+            // CHECK: Skip if notifications disabled
+            if (!userWantsNotifications($conn, $targetStudent)) continue;
 
             // Check if already notified in last 24h to avoid spam
             $check = $conn->prepare("
@@ -100,6 +112,9 @@ else {
 
         while ($row = $allStudents->fetch_assoc()) {
             $targetStudent = $row['student_id'];
+
+            // CHECK: Skip if notifications disabled
+            if (!userWantsNotifications($conn, $targetStudent)) continue;
 
             // Check if already notified in last 24h
             $check = $conn->prepare("

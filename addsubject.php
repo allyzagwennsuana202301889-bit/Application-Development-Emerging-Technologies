@@ -73,20 +73,21 @@ if (isset($_GET['note_id'])) {
     }
 
     .flashcards-badge {
-      position: fixed;
-      top: 70px;
-      right: 16px;
-      background: #87CEEB;
-      color: #1a1a2e;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-family: 'Inria Sans', sans-serif;
-      z-index: 50;
-      display: none;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+   position: fixed;
+  top: 50px;
+  left: 48%;
+  transform: translateX(-50%);
+  background: #87CEEB;
+  color: #1a1a2e;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'Inria Sans', sans-serif;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
     .flashcards-badge.show { display: flex; }
     .flashcards-badge img {
@@ -181,6 +182,35 @@ if (isset($_GET['note_id'])) {
     .fake-desc li {
       list-style-position: inside;
     }
+
+    /* Toolbar button active/highlight state */
+    .toolbar-btn.active {
+      background: #3B8BFF;
+      color: white;
+      border-color: #3B8BFF;
+    }
+    .toolbar-btn.active svg {
+      fill: white;
+      stroke: white;
+    }
+    .toolbar-btn.active b,
+    .toolbar-btn.active i,
+    .toolbar-btn.active u,
+    .toolbar-btn.active s {
+      color: white;
+    }
+
+    /* Move remove image buttons to the LEFT */
+    .remove-subject-img-btn,
+    .remove-card-img-btn {
+      right: auto;
+      left: -6px;
+    }
+    .remove-subject-img-btn {
+      right: auto;
+      left: -8px;
+    }
+
   </style>
 </head>
 
@@ -203,7 +233,7 @@ if (isset($_GET['note_id'])) {
 
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
      <!-- Profile Image Fetch -->
@@ -241,8 +271,8 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
-    <a href="#">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="leaderboard.php">Leaderboard</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -544,6 +574,62 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// ============================================
+// IMAGE COMPRESSION UTILITY
+// ============================================
+function compressImage(file, maxWidth = 800, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Check if image has transparency
+        const hasTransparency = imageHasTransparency(ctx, width, height);
+
+        // Use PNG for transparent images, JPEG for opaque (smaller)
+        const output = hasTransparency
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', quality);
+
+        resolve(output);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function imageHasTransparency(ctx, width, height) {
+  try {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    // Check alpha channel of every 4th byte (R,G,B,A)
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) {
+        return true; // Found a transparent/semi-transparent pixel
+      }
+    }
+  } catch (e) {
+    // Fallback: assume no transparency if we can't read
+    return false;
+  }
+  return false;
+}
+
 function saveToDatabase() {
   if (!hasRealContent()) {
     clearLocalState();
@@ -553,24 +639,34 @@ function saveToDatabase() {
   const cards = getAllContent();
   const title = document.getElementById("subjectName").value.trim();
 
-  const params = new URLSearchParams();
-  params.append("title", title);
-  params.append("content", JSON.stringify(cards));
-  params.append("type", "subject_draft");
+  const payload = {
+    title: title,
+    content: JSON.stringify(cards),
+    type: "subject_draft"
+  };
 
   if (subjectImageData) {
-    params.append("subject_image", subjectImageData);
+    payload.subject_image = subjectImageData;
   }
 
   if (NOTE_ID) {
-    params.append("note_id", NOTE_ID);
+    payload.note_id = NOTE_ID;
   }
 
   return fetch('savenote.php', {
     method: 'POST',
-    body: params
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   })
-  .then(res => res.json())
+  .then(async res => {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error("Invalid JSON response:", text);
+      throw new Error("Server error: " + text.substring(0, 200));
+    }
+  })
   .then(data => {
     if (!NOTE_ID && data.note_id) {
       NOTE_ID = data.note_id;
@@ -706,32 +802,50 @@ function attachImageHandler(card) {
   const preview = card.querySelector(".card-image-preview");
   if (!input || !preview) return;
 
-  input.addEventListener("change", function() {
+  input.addEventListener("change", async function() {
     const file = this.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      preview.src = e.target.result;
-      preview.setAttribute("data-img", e.target.result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
+      preview.src = compressed;
+      preview.setAttribute("data-img", compressed);
+      persistToSession();
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      // Fallback to original
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.setAttribute("data-img", e.target.result);
+        persistToSession();
+      };
+      reader.readAsDataURL(file);
+    }
   });
 }
 
 let subjectImageData = null;
 
-document.getElementById("subjectImageInput").addEventListener("change", function() {
+document.getElementById("subjectImageInput").addEventListener("change", async function() {
   const file = this.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    subjectImageData = e.target.result;
+  try {
+    const compressed = await compressImage(file, 800, 0.8);
+    subjectImageData = compressed;
     document.getElementById("subjectImagePreview").src = subjectImageData;
     persistToSession();
-  };
-  reader.readAsDataURL(file);
+  } catch (err) {
+    console.error("Image compression failed:", err);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      subjectImageData = e.target.result;
+      document.getElementById("subjectImagePreview").src = subjectImageData;
+      persistToSession();
+    };
+    reader.readAsDataURL(file);
+  }
 });
 
 window.addEventListener("load", () => {
@@ -829,17 +943,12 @@ function goToFlashcards() {
 
 let lastFocusedDesc = null;
 
-document.addEventListener('focusin', function(e) {
-  if (e.target && e.target.classList.contains('fake-desc')) {
-    lastFocusedDesc = e.target;
-  }
-});
-
 function fmt(cmd) {
   // Use CSS-based styling so bold works reliably even when font-weight is inherited
   document.execCommand('styleWithCSS', false, true);
   document.execCommand(cmd, false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
   persistToSession();
 }
 
@@ -847,6 +956,7 @@ function fmtSup() {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('superscript', false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
   persistToSession();
 }
 
@@ -854,8 +964,72 @@ function fmtSub() {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('subscript', false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
   persistToSession();
 }
+
+function updateToolbarState() {
+  // Check formatting state at current cursor position
+  const toolbar = document.getElementById('formattingToolbar');
+  if (!toolbar || toolbar.style.display === 'none') return;
+
+  // Remove all active states first
+  toolbar.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+
+  // Check which formats are active
+  const isBold = document.queryCommandState('bold');
+  const isItalic = document.queryCommandState('italic');
+  const isUnderline = document.queryCommandState('underline');
+  const isStrike = document.queryCommandState('strikeThrough');
+  const isSub = document.queryCommandState('subscript');
+  const isSup = document.queryCommandState('superscript');
+  const isBullet = document.queryCommandState('insertUnorderedList');
+  const isNumber = document.queryCommandState('insertOrderedList');
+
+  // Get all toolbar buttons and mark active ones
+  const buttons = toolbar.querySelectorAll('.toolbar-btn');
+  buttons.forEach((btn, idx) => {
+    const title = btn.getAttribute('title') || '';
+    if (title === 'Bold' && isBold) btn.classList.add('active');
+    if (title === 'Italic' && isItalic) btn.classList.add('active');
+    if (title === 'Underline' && isUnderline) btn.classList.add('active');
+    if (title === 'Strikethrough' && isStrike) btn.classList.add('active');
+    if (title === 'Subscript' && isSub) btn.classList.add('active');
+    if (title === 'Superscript' && isSup) btn.classList.add('active');
+    if (title === 'Bullet List' && isBullet) btn.classList.add('active');
+    if (title === 'Numbered List' && isNumber) btn.classList.add('active');
+  });
+
+  // Check alignment
+  const alignLeft = document.queryCommandState('justifyLeft');
+  const alignCenter = document.queryCommandState('justifyCenter');
+  const alignRight = document.queryCommandState('justifyRight');
+  const alignJustify = document.queryCommandState('justifyFull');
+
+  buttons.forEach(btn => {
+    const title = btn.getAttribute('title') || '';
+    if (title === 'Align Left' && alignLeft) btn.classList.add('active');
+    if (title === 'Center' && alignCenter) btn.classList.add('active');
+    if (title === 'Align Right' && alignRight) btn.classList.add('active');
+    if (title === 'Justify' && alignJustify) btn.classList.add('active');
+  });
+}
+
+// Update toolbar state when focusing on a desc
+document.addEventListener('focusin', function(e) {
+  if (e.target && e.target.classList.contains('fake-desc')) {
+    lastFocusedDesc = e.target;
+    setTimeout(updateToolbarState, 10);
+  }
+});
+
+// Update toolbar state on selection change
+document.addEventListener('selectionchange', function() {
+  const toolbar = document.getElementById('formattingToolbar');
+  if (toolbar && toolbar.style.display !== 'none') {
+    setTimeout(updateToolbarState, 10);
+  }
+});
 
 function smartAlign(align) {
   const target = lastFocusedDesc || document.querySelector('.fake-desc');
@@ -913,6 +1087,7 @@ function smartAlign(align) {
   // Otherwise, do normal text alignment
   const cmd = align === 'left' ? 'justifyLeft' : align === 'center' ? 'justifyCenter' : align === 'right' ? 'justifyRight' : 'justifyFull';
   fmt(cmd);
+  updateToolbarState();
 }
 
 function toggleToolbar() {
@@ -947,17 +1122,17 @@ function addImageToDesc() {
   input.style.display = 'none';
   document.body.appendChild(input);
 
-  input.addEventListener('change', function() {
+  input.addEventListener('change', async function() {
     const file = this.files[0];
     if (!file) { input.remove(); return; }
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
       const target = lastFocusedDesc || document.querySelector('.fake-desc');
       if (!target) { input.remove(); return; }
 
       target.focus();
-      const img = makeDescImage(e.target.result);
+      const img = makeDescImage(compressed);
 
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
@@ -975,8 +1150,32 @@ function addImageToDesc() {
       selectImage(img);
       persistToSession();
       input.remove();
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      // Fallback: use original file reader
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const target = lastFocusedDesc || document.querySelector('.fake-desc');
+        if (!target) { input.remove(); return; }
+        target.focus();
+        const img = makeDescImage(e.target.result);
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          range.insertNode(img);
+          range.setStartAfter(img);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          target.appendChild(img);
+        }
+        selectImage(img);
+        persistToSession();
+        input.remove();
+      };
+      reader.readAsDataURL(file);
+    }
   });
 
   input.click();

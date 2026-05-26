@@ -4,38 +4,276 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style2.css">
+    <style>
+        .container {
+            background: #3B8BFF;
+        }
+        
+        /* ========== TOP BAR ========== */
+        .faq-top-bar {
+            height: 80px;
+            background: #3B8BFF;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .faq-top-bar .faq-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .faq-top-bar .faq-logo img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+        }
+        
+        .faq-top-bar .faq-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a1a2e;
+            font-family: 'Itim', cursive;
+            letter-spacing: 1px;
+        }
+        
+        .faq-top-bar .back-btn {
+            width: 44px;
+            height: 44px;
+            background: transparent;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .faq-top-bar .back-btn img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            filter: brightness(0);
+        }
+        
+        /* ========== CONTENT AREA ========== */
+        .faq-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #3B8BFF;
+        }
+        
+        .faq-content::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* ========== FAQ CARD ========== */
+        .faq-card {
+            background: #e8e8e8;
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+        
+        .faq-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3B8BFF;
+        }
+        
+        .faq-card-header .section-icon {
+            width: 32px;
+            height: 32px;
+            background: #3B8BFF;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .faq-card-header .section-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+        }
+        
+        .faq-card-header h2 {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a1a2e;
+            font-family: 'Itim', cursive;
+            margin: 0;
+        }
+        
+        .qa-pair {
+            margin-bottom: 14px;
+        }
+        
+        .qa-pair:last-child {
+            margin-bottom: 0;
+        }
+        
+        .question {
+            font-size: 15px;
+            font-weight: bold;
+            color: #1a1a2e;
+            font-family: 'Itim', cursive;
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+        
+        .question::before {
+            content: "Q: ";
+            color: #3B8BFF;
+        }
+        
+        .answer {
+            font-size: 14px;
+            color: #444;
+            font-family: 'Itim', cursive;
+            line-height: 1.5;
+        }
+        
+        .answer::before {
+            content: "A: ";
+            color: #FFAE71;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-     
-Learning & Content
 
-Q: How do I start a lesson? A: Navigate to your desired subject using the menu or search bar, then tap on a lesson card to begin.
+<div class="container">
 
-Q: What subjects are available? A: The app currently supports Science, Geography, English, Math, and Chemistry, with more to come.
+    <!-- TOP BAR -->
+    <div class="faq-top-bar">
+        <div class="faq-logo">
+            <img src="FAQIcon.png" alt="FAQ">
+        </div>
+        <div class="faq-title">FAQ</div>
+        <button class="back-btn" onclick="window.location.href='homepage.php'">
+            <img src="back.png" alt="Back">
+        </button>
+    </div>
 
-Q: How do I add or submit flashcards or notes? A: Use the “Add flashcard” or “Notes” section available within each subject tab.
+    <!-- CONTENT -->
+    <div class="faq-content">
+    
+        <!-- CARD 1 -->
+        <div class="faq-card">
+            <div class="faq-card-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+                </div>
+                <h2>Learning & Content</h2>
+            </div>
+            <div class="qa-pair">
+                <div class="question">How do I start a lesson?</div>
+                <div class="answer">Navigate to your desired subject using the menu or search bar, then tap on a lesson card to begin.</div>
+            </div>
+            <div class="qa-pair">
+                <div class="question">What subjects are available?</div>
+                <div class="answer">The app currently supports Science, Geography, English, Math, and Chemistry, with more to come.</div>
+            </div>
+            <div class="qa-pair">
+                <div class="question">How do I add or submit flashcards or notes?</div>
+                <div class="answer">Use the "Add flashcard" or "Notes" section available within each subject tab.</div>
+            </div>
+        </div>
+        
+        <!-- CARD 2 -->
+        <div class="faq-card">
+            <div class="faq-card-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                </div>
+                <h2>Progress Tracking</h2>
+            </div>
+            <div class="qa-pair">
+                <div class="question">Where can I view my progress?</div>
+                <div class="answer">Visit the "Analysis" page or check the progress bars within each subject tile.</div>
+            </div>
+            <div class="qa-pair">
+                <div class="question">What does the percentage next to a subject mean?</div>
+                <div class="answer">It shows your completion rate or performance in that subject.</div>
+            </div>
+        </div>
+        
+        <!-- CARD 3 -->
+        <div class="faq-card">
+            <div class="faq-card-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                </div>
+                <h2>Notes & Collaboration</h2>
+            </div>
+            <div class="qa-pair">
+                <div class="question">Can I take notes during lessons?</div>
+                <div class="answer">Yes, head to the "Notes" section to write and save your thoughts or answers.</div>
+            </div>
+            <div class="qa-pair">
+                <div class="question">Can I share notes with others?</div>
+                <div class="answer">This feature may be part of future releases. For now, notes are saved locally to your account.</div>
+            </div>
+        </div>
+        
+        <!-- CARD 4 -->
+        <div class="faq-card">
+            <div class="faq-card-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V19H7v2h10v-2h-4v-3.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z"/></svg>
+                </div>
+                <h2>Leaderboard & Motivation</h2>
+            </div>
+            <div class="qa-pair">
+                <div class="question">How does the leaderboard work?</div>
+                <div class="answer">The leaderboard ranks users based on lesson completion and quiz performance.</div>
+            </div>
+            <div class="qa-pair">
+                <div class="question">How can I improve my rank?</div>
+                <div class="answer">Focus on finishing lessons and scoring well on quizzes.</div>
+            </div>
+        </div>
+        
+        <!-- CARD 5 -->
+        <div class="faq-card">
+            <div class="faq-card-header">
+                <div class="section-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                </div>
+                <h2>Notifications & Updates</h2>
+            </div>
+            <div class="qa-pair">
+                <div class="question">What are the "Updates" and "Missing" tabs for?</div>
+                <div class="answer">They show new content uploads, score updates, and any missed or pending files/notes.</div>
+            </div>
+        </div>
+        
+    </div>
 
-Progress Tracking
-
-Q: Where can I view my progress? A: Visit the “Analysis” page or check the progress bars within each subject tile.
-
-Q: What does the percentage next to a subject mean? A: It shows your completion rate or performance in that subject.
-
-Notes & Collaboration
-
-Q: Can I take notes during lessons? A: Yes, head to the “Notes” section to write and save your thoughts or answers.
-
-Q: Can I share notes with others? A: This feature may be part of future releases. For now, notes are saved locally to your account.
-
-Leaderboard & Motivation
-
-Q: How does the leaderboard work? A: The leaderboard ranks users based on lesson completion and quiz performance.
-
-Q: How can I improve my rank?  A: Focus on finishing lessons and scoring well on quizzes.
-
-Notifications & Updates
-
-Q: What are the “Updates” and “Missing” tabs for? A: They show new content uploads, score updates, and any missed or pending files/notes.
+</div>
 
 </body>
 </html>

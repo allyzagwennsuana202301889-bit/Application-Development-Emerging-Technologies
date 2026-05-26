@@ -52,13 +52,14 @@ if (!empty($note['content'])) {
       font-size: 18px;
       font-weight: bold;
       cursor: pointer;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 10;
       line-height: 1;
       padding-bottom: 2px;
     }
+    .edit-mode .delete-card-btn { display: flex; }
     .delete-card-btn:hover { background: #cc0000; }
 
     .toast {
@@ -194,18 +195,34 @@ if (!empty($note['content'])) {
       list-style-position: inside;
     }
 
-    /* ============================================
+       /* ============================================
        TOOLBAR FIXES - override style.css
        ============================================ */
 
-    /* Raise toolbar above bottom nav */
+    /* FIX: Toolbar was getting clipped by .container { overflow: hidden }
+       because transform: translateX(-50%) creates a new containing block.
+       Solution: Use left: 0 with margin: 0 auto for centering instead of transform. */
     .formatting-toolbar {
+      position: fixed;
+      bottom: 115px;
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 412px;
       z-index: 200;
-      bottom: 125px;
-      padding: 8px 8px;
       border-top: 2px solid #3B8BFF;
-      box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
-      min-height: 50px;
+      box-sizing: border-box;
+    }
+
+    /* Keep the animation but without transform conflict */
+    .formatting-toolbar.toolbar-visible {
+      animation: toolbarSlideUpFix 0.22s cubic-bezier(0.34,1.4,0.64,1) both;
+    }
+
+    @keyframes toolbarSlideUpFix {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
     }
 
     /* Push content up when toolbar is open */
@@ -218,7 +235,52 @@ if (!empty($note['content'])) {
       z-index: 150;
     }
 
+    /* ============================================
+       BOTTOM BAR FIX - White text on blue bg
+       ============================================ */
+
+    /* Force white text for ALL bottom bar items */
+    .bottom-file-section .item p,
+    .bottom-file-section p,
+    .bottom-file-section .item {
+      color: #ffffff !important;
+    }
+
+    /* Also target any text inside the bottom section */
+    .bottom-file-section * {
+      color: #ffffff;
+    }
+
     /* Subject image label - only clickable in edit mode */
+
+    /* Toolbar button active/highlight state */
+    .toolbar-btn.active {
+      background: #3B8BFF;
+      color: white;
+      border-color: #3B8BFF;
+    }
+    .toolbar-btn.active svg {
+      fill: white;
+      stroke: white;
+    }
+    .toolbar-btn.active b,
+    .toolbar-btn.active i,
+    .toolbar-btn.active u,
+    .toolbar-btn.active s {
+      color: white;
+    }
+
+    /* Move remove image buttons to the LEFT */
+    .remove-subject-img-btn,
+    .remove-card-img-btn {
+      right: auto;
+      left: -6px;
+    }
+    .remove-subject-img-btn {
+      right: auto;
+      left: -8px;
+    }
+
     .subject-image-label {
       pointer-events: none;
     }
@@ -240,7 +302,7 @@ if (!empty($note['content'])) {
 
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
    <?php
@@ -268,8 +330,8 @@ if (strpos($image_src, 'data:') !== 0) {
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
-    <a href="#">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="leaderboard.php">Leaderboard</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -319,7 +381,6 @@ if (strpos($image_src, 'data:') !== 0) {
 <?php endforeach; ?>
 </div>
 
-</div>
 
   <!-- FORMATTING TOOLBAR -->
   <div class="formatting-toolbar" id="formattingToolbar" style="display:none;" onmousedown="event.preventDefault()">
@@ -394,7 +455,63 @@ let NOTE_ID = <?= isset($note['note_id']) ? $note['note_id'] : 'null' ?>;
 let isEditing = false;
 let subjectImageData = "<?= htmlspecialchars($note['subject_image'] ?? '') ?>";
 let lastFocusedDesc = null;
-let selectedImage = null;  // Track the currently selected image for alignment
+let selectedImage = null;
+
+// ============================================
+// IMAGE COMPRESSION UTILITY
+// ============================================
+function compressImage(file, maxWidth = 800, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Check if image has transparency
+        const hasTransparency = imageHasTransparency(ctx, width, height);
+
+        // Use PNG for transparent images, JPEG for opaque (smaller)
+        const output = hasTransparency
+          ? canvas.toDataURL('image/png')
+          : canvas.toDataURL('image/jpeg', quality);
+
+        resolve(output);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function imageHasTransparency(ctx, width, height) {
+  try {
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    // Check alpha channel of every 4th byte (R,G,B,A)
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 255) {
+        return true; // Found a transparent/semi-transparent pixel
+      }
+    }
+  } catch (e) {
+    // Fallback: assume no transparency if we can't read
+    return false;
+  }
+  return false;
+}
 
 function toggleEditMode() {
   isEditing = !isEditing;
@@ -415,7 +532,6 @@ function toggleEditMode() {
     titles.forEach(t => t.removeAttribute("readonly"));
     imageInputs.forEach(i => i.disabled = false);
     if (subjectImageInput) subjectImageInput.disabled = false;
-    // Swap nav: hide Edit, show Text + Save
     editItem.style.display = 'none';
     textNavItem.style.display = 'flex';
     saveItem.style.display = 'flex';
@@ -428,11 +544,9 @@ function toggleEditMode() {
       titles.forEach(t => t.setAttribute("readonly", true));
       imageInputs.forEach(i => i.disabled = true);
       if (subjectImageInput) subjectImageInput.disabled = true;
-      // Swap nav back: show Edit, hide Text + Save
       editItem.style.display = 'flex';
       textNavItem.style.display = 'none';
       saveItem.style.display = 'none';
-      // Hide toolbar
       const toolbar = document.getElementById('formattingToolbar');
       toolbar.style.display = 'none';
       toolbar.classList.remove('toolbar-visible');
@@ -447,29 +561,42 @@ function saveToDatabase() {
   const content = getAllContent();
   console.log("SAVING CONTENT:", JSON.stringify(content, null, 2));
 
-  const params = new URLSearchParams();
-  params.append("title", document.getElementById("subjectName").value);
-  params.append("content", JSON.stringify(content));
-  params.append("type", "subject_draft");
-  if (NOTE_ID) params.append("note_id", NOTE_ID);
+  const payload = {
+    title: document.getElementById("subjectName").value,
+    content: JSON.stringify(content),
+    type: "subject_draft"
+  };
+
+  if (NOTE_ID) payload.note_id = NOTE_ID;
   if (subjectImageData === null) {
-    params.append("subject_image", "__REMOVE__");
+    payload.subject_image = "__REMOVE__";
   } else if (subjectImageData) {
-    params.append("subject_image", subjectImageData);
+    payload.subject_image = subjectImageData;
   }
 
   return fetch('savenote.php', {
     method: 'POST',
-    body: params
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   })
-  .then(res => res.json())
+  .then(async res => {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      console.error("Invalid JSON response:", text);
+      throw new Error("Server error: " + text.substring(0, 200));
+    }
+  })
   .then(data => {
     console.log("SAVE RESPONSE:", data);
     if (data.note_id) NOTE_ID = data.note_id;
+    return data;
   })
   .catch(err => {
     console.error(err);
-    alert("Save failed");
+    alert("Save failed: " + err.message);
+    throw err;
   });
 }
 
@@ -489,13 +616,10 @@ function getAllContent() {
     let desc = "";
     if (descEl) {
       const clone = descEl.cloneNode(true);
-      // Remove selection highlight before saving
       clone.querySelectorAll('.img-selected').forEach(el => el.classList.remove('img-selected'));
-      // Clean up temporary event attributes (but KEEP style for alignment!)
       clone.querySelectorAll('img').forEach(imgEl => {
         imgEl.removeAttribute('onclick');
         imgEl.removeAttribute('onmousedown');
-        // Ensure class is set for next load
         if (!imgEl.classList.contains('desc-img')) {
           imgEl.classList.add('desc-img');
         }
@@ -545,15 +669,23 @@ function attachImageHandler(card) {
   const preview = card.querySelector(".card-image-preview");
   if (!input || !preview) return;
 
-  input.addEventListener("change", function() {
+  input.addEventListener("change", async function() {
     const file = this.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      preview.src = e.target.result;
-      preview.setAttribute("data-img", e.target.result);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
+      preview.src = compressed;
+      preview.setAttribute("data-img", compressed);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.setAttribute("data-img", e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
   });
 }
 
@@ -561,7 +693,6 @@ window.addEventListener("load", () => {
   document.querySelectorAll(".subject-main-card").forEach(card => {
     attachImageHandler(card);
   });
-  // Ensure all images in descriptions have proper classes and handlers
   document.querySelectorAll('.fake-desc').forEach((desc, i) => {
     console.log("LOADED DESC " + i + ":", desc.innerHTML.substring(0, 200));
     desc.querySelectorAll('img').forEach(img => {
@@ -579,15 +710,23 @@ window.addEventListener("load", () => {
 
 const subjectInput = document.getElementById("subjectImageInput");
 if (subjectInput) {
-  subjectInput.addEventListener("change", function() {
+  subjectInput.addEventListener("change", async function() {
     const file = this.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      subjectImageData = e.target.result;
+
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
+      subjectImageData = compressed;
       document.getElementById("subjectImagePreview").src = subjectImageData;
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        subjectImageData = e.target.result;
+        document.getElementById("subjectImagePreview").src = subjectImageData;
+      };
+      reader.readAsDataURL(file);
+    }
   });
 }
 
@@ -624,30 +763,87 @@ function fmt(cmd) {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand(cmd, false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
 }
 
 function fmtSup() {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('superscript', false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
 }
 
 function fmtSub() {
   document.execCommand('styleWithCSS', false, true);
   document.execCommand('subscript', false, null);
   document.execCommand('styleWithCSS', false, false);
+  updateToolbarState();
 }
 
+function updateToolbarState() {
+  const toolbar = document.getElementById('formattingToolbar');
+  if (!toolbar || toolbar.style.display === 'none') return;
+
+  toolbar.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+
+  const isBold = document.queryCommandState('bold');
+  const isItalic = document.queryCommandState('italic');
+  const isUnderline = document.queryCommandState('underline');
+  const isStrike = document.queryCommandState('strikeThrough');
+  const isSub = document.queryCommandState('subscript');
+  const isSup = document.queryCommandState('superscript');
+  const isBullet = document.queryCommandState('insertUnorderedList');
+  const isNumber = document.queryCommandState('insertOrderedList');
+
+  const buttons = toolbar.querySelectorAll('.toolbar-btn');
+  buttons.forEach((btn, idx) => {
+    const title = btn.getAttribute('title') || '';
+    if (title === 'Bold' && isBold) btn.classList.add('active');
+    if (title === 'Italic' && isItalic) btn.classList.add('active');
+    if (title === 'Underline' && isUnderline) btn.classList.add('active');
+    if (title === 'Strikethrough' && isStrike) btn.classList.add('active');
+    if (title === 'Subscript' && isSub) btn.classList.add('active');
+    if (title === 'Superscript' && isSup) btn.classList.add('active');
+    if (title === 'Bullet List' && isBullet) btn.classList.add('active');
+    if (title === 'Numbered List' && isNumber) btn.classList.add('active');
+  });
+
+  const alignLeft = document.queryCommandState('justifyLeft');
+  const alignCenter = document.queryCommandState('justifyCenter');
+  const alignRight = document.queryCommandState('justifyRight');
+  const alignJustify = document.queryCommandState('justifyFull');
+
+  buttons.forEach(btn => {
+    const title = btn.getAttribute('title') || '';
+    if (title === 'Align Left' && alignLeft) btn.classList.add('active');
+    if (title === 'Center' && alignCenter) btn.classList.add('active');
+    if (title === 'Align Right' && alignRight) btn.classList.add('active');
+    if (title === 'Justify' && alignJustify) btn.classList.add('active');
+  });
+}
+
+// Update toolbar state when focusing on a desc
+document.addEventListener('focusin', function(e) {
+  if (e.target && e.target.classList.contains('fake-desc')) {
+    lastFocusedDesc = e.target;
+    setTimeout(updateToolbarState, 10);
+  }
+});
+
+// Update toolbar state on selection change
+document.addEventListener('selectionchange', function() {
+  if (isEditing) {
+    setTimeout(updateToolbarState, 10);
+  }
+});
+
 function smartAlign(align) {
-  // First check if we have a selected image tracked
   let img = selectedImage;
 
-  // If not, try to find from the DOM
   if (!img) {
     img = document.querySelector('.desc-img.img-selected');
   }
 
-  // If still not found, try from current selection
   if (!img) {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -664,7 +860,6 @@ function smartAlign(align) {
     }
   }
 
-  // If an image is selected/found, align the image
   if (img && img.closest('.fake-desc')) {
     console.log("Aligning image:", align, img.src.substring(0, 50));
     img.style.display = 'block';
@@ -683,19 +878,18 @@ function smartAlign(align) {
       img.style.marginLeft = 'auto';
       img.style.marginRight = 'auto';
     }
-    // Flash the image to show alignment was applied
     img.style.opacity = '0.5';
     setTimeout(() => img.style.opacity = '1', 200);
     return;
   }
 
-  // Otherwise, do normal text alignment
   console.log("Aligning text:", align);
   const target = lastFocusedDesc || document.querySelector('.fake-desc');
   if (!target) return;
   target.focus();
   const cmd = align === 'left' ? 'justifyLeft' : align === 'center' ? 'justifyCenter' : align === 'right' ? 'justifyRight' : 'justifyFull';
   fmt(cmd);
+  updateToolbarState();
 }
 
 function toggleToolbar() {
@@ -728,17 +922,17 @@ function addImageToDesc() {
   input.style.display = 'none';
   document.body.appendChild(input);
 
-  input.addEventListener('change', function() {
+  input.addEventListener('change', async function() {
     const file = this.files[0];
     if (!file) { input.remove(); return; }
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
+    try {
+      const compressed = await compressImage(file, 800, 0.8);
       const target = lastFocusedDesc || document.querySelector('.fake-desc');
       if (!target) { input.remove(); return; }
 
       target.focus();
-      const img = makeDescImage(e.target.result);
+      const img = makeDescImage(compressed);
 
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
@@ -754,8 +948,30 @@ function addImageToDesc() {
 
       selectImage(img);
       input.remove();
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const target = lastFocusedDesc || document.querySelector('.fake-desc');
+        if (!target) { input.remove(); return; }
+        target.focus();
+        const img = makeDescImage(e.target.result);
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          range.insertNode(img);
+          range.setStartAfter(img);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          target.appendChild(img);
+        }
+        selectImage(img);
+        input.remove();
+      };
+      reader.readAsDataURL(file);
+    }
   });
 
   input.click();
@@ -790,11 +1006,9 @@ function selectImage(img) {
     lastFocusedDesc = desc;
   }
 
-  // Track this image for alignment
   selectedImage = img;
   console.log("Image selected for alignment:", img.src.substring(0, 50));
 
-  // Visual feedback
   document.querySelectorAll('.desc-img').forEach(i => i.classList.remove('img-selected'));
   img.classList.add('img-selected');
 }
@@ -804,18 +1018,15 @@ function setupImageClickHandlers() {
   if (!container) return;
 
   container.addEventListener('click', function(e) {
-    // Handle clicks on any image inside fake-desc
     const img = e.target.closest('img');
     const desc = e.target.closest('.fake-desc');
 
     if (!img || !desc) {
-      // Clicked outside an image in desc - clear selection
       document.querySelectorAll('.desc-img').forEach(i => i.classList.remove('img-selected'));
       selectedImage = null;
       return;
     }
 
-    // Ensure the image has the desc-img class for styling
     if (!img.classList.contains('desc-img')) {
       img.classList.add('desc-img');
       img.setAttribute('contenteditable', 'false');

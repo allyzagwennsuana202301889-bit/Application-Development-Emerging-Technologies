@@ -103,6 +103,43 @@ $read_count = $read_stmt->get_result()->fetch_assoc()['read_count'] ?? 0;
   <title>Study</title>
   <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+<style>
+/* ============================================
+       LIST FIX - bullets/numbers stay with text
+       ============================================ */
+  .fake-desc ul,
+.fake-desc ol {
+    list-style-position: inside;
+    padding-left: 0;
+    margin-left: 0;
+}
+.fake-desc li {
+    list-style-position: inside;
+    display: list-item;
+}
+    
+    /* Ensure font consistency */
+    .fake-desc,
+    .fake-desc * {
+        font-family: 'Itim', cursive !important;
+    }
+    
+    /* Images in descriptions */
+    .desc-img {
+        max-width: 100%;
+        border-radius: 6px;
+        margin: 6px 0;
+        display: block;
+    }
+    
+    /* Card image styling */
+    .card-image-preview {
+        max-width: 100%;
+        border-radius: 8px;
+        display: block;
+        margin: 0 auto;
+    }
+</style>
 </head>
 <body>
 
@@ -118,7 +155,7 @@ $read_count = $read_stmt->get_result()->fetch_assoc()['read_count'] ?? 0;
   <!-- SIDEBAR -->
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back">
     </div>
  <?php
@@ -154,8 +191,8 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="homepage.php">Home</a>
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
-    <a href="#">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="leaderboard.php">Leaderboard</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -190,8 +227,8 @@ if (strpos($image_src, 'data:') === 0) {
     if ($json_valid) {
         foreach ($lessons as $index => $lesson) {
             $title = htmlspecialchars($lesson['title'] ?? 'Untitled');
-            $desc  = htmlspecialchars($lesson['desc'] ?? '');
-            
+       $desc = $lesson['desc'] ?? '';
+
             $img_raw = $lesson['img'] ?? '';
             $img_src = '';
             
@@ -221,7 +258,7 @@ if (strpos($image_src, 'data:') === 0) {
                 <img src="<?= htmlspecialchars($img_src) ?>" alt="<?= $title ?>" class="card-image-preview">
             <?php endif; ?>
             <input type="text" class="card-title" value="<?= $title ?>" readonly>
-            <div class="fake-desc"><?= nl2br($desc) ?></div>
+            <div class="fake-desc"><?= $desc ?></div>  <!-- already HTML, no nl2br needed -->
         </div>
     <?php
         }

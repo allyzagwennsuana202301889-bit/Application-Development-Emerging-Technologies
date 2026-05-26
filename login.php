@@ -25,7 +25,29 @@ $result = $stmt->get_result();
 if ($result && $result->num_rows > 0) {
     $user = $result->fetch_assoc();
 
-    if ($user['password'] === $password) {
+    // Check if password is hashed or plain text
+    $passwordValid = false;
+    $needsRehash = false;
+    
+    if (password_get_info($user['password'])['algo']) {
+        // It's a hash — use password_verify
+        $passwordValid = password_verify($password, $user['password']);
+        $needsRehash = password_needs_rehash($user['password'], PASSWORD_DEFAULT);
+    } else {
+        // It's plain text — compare directly, then rehash
+        $passwordValid = ($user['password'] === $password);
+        $needsRehash = $passwordValid; // Only rehash if correct
+    }
+
+    if ($passwordValid) {
+        // Rehash plain text passwords on successful login
+        if ($needsRehash) {
+            $newHash = password_hash($password, PASSWORD_DEFAULT);
+            $update = $conn->prepare("UPDATE student SET password = ? WHERE student_id = ?");
+            $update->bind_param("si", $newHash, $user['student_id']);
+            $update->execute();
+        }
+
         session_regenerate_id(true);
         
         $_SESSION['student_id'] = $user['student_id'];
@@ -40,9 +62,12 @@ if ($result && $result->num_rows > 0) {
     }
 } else {
     $name = explode("@", $email)[0];
+    
+    // Hash password for new registrations
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
     $stmt = $conn->prepare("INSERT INTO student (name, email, password) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $name, $email, $password);
+    $stmt->bind_param("sss", $name, $email, $hashedPassword);
     
     if ($stmt->execute()) {
         session_regenerate_id(true);

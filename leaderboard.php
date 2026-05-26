@@ -173,7 +173,7 @@ function getImage($profile_image) {
   <!-- SIDEBAR -->
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()" class="help">
       <img src="back.png" class="back" onclick="closeSidebar()">
     </div>
    <?php
@@ -209,7 +209,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 

@@ -9,11 +9,13 @@ $folder_id = $_GET['folder_id'] ?? null;
 if ($folder_id) {
   $sql_notes = "SELECT * FROM notes 
                 WHERE student_id=$student_id 
-                AND folder_id=$folder_id";
+                AND folder_id=$folder_id
+                AND (type IS NULL OR type NOT IN ('subject_draft', 'subject'))";
 } else {
   $sql_notes = "SELECT * FROM notes 
                 WHERE student_id=$student_id 
-                AND (folder_id IS NULL OR folder_id = 0)";
+                AND (folder_id IS NULL OR folder_id = 0)
+                AND (type IS NULL OR type NOT IN ('subject_draft', 'subject'))";
 }
 $notes_result = $conn->query($sql_notes);
 
@@ -39,7 +41,7 @@ $folders_result = $conn->query($sql_folders);
 
   <div class="nav-links">
     <div class="top-icons">
-      <img src="FAQIcon.png" class="help">
+      <img src="FAQIcon.png" onclick="fax()"  class="help">
       <img src="back.png" class="back">
     </div>
 
@@ -59,7 +61,7 @@ $folders_result = $conn->query($sql_folders);
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.html">Settings</a>
+    <a href="settings.php">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -73,7 +75,7 @@ $folders_result = $conn->query($sql_folders);
     <img src="back.png">
   </div>
   <?php } ?>
-  
+
     <div class="folder add-folder" onclick="createFolder()">
       <img src="add.png">
       <p>Add</p>
@@ -81,9 +83,6 @@ $folders_result = $conn->query($sql_folders);
 
     <?php while($f = $folders_result->fetch_assoc()){ ?>
     <div class="folder" data-id="<?= $f['folder_id'] ?>">
-      <button class="delete-btn"
-        onclick="deleteFolder(<?= $f['folder_id'] ?>,event)">-</button>
-
       <img src="folder.png">
       <p class="folder-name" onclick="renameFolder(<?= $f['folder_id'] ?>, event)">
         <?= $f['folder_name'] ?>
@@ -98,7 +97,7 @@ $folders_result = $conn->query($sql_folders);
 <?php while($n = $notes_result->fetch_assoc()){ 
   $title = !empty($n['title']) ? $n['title'] : 'Untitled';
   $content = $n['content'] ?? '';
-  
+
   // Check if content is JSON (old format)
   $decoded = json_decode($content, true);
   if ($decoded !== null && is_array($decoded)) {
@@ -108,12 +107,12 @@ $folders_result = $conn->query($sql_folders);
       if (!empty($item['title'])) $parts[] = $item['title'];
       if (!empty($item['desc'])) $parts[] = $item['desc'];
     }
-    $plainText = implode("\n", $parts);
+    $plainText = html_entity_decode(implode("\n", $parts), ENT_QUOTES | ENT_HTML5, 'UTF-8');
   } else {
-    // Normal HTML content — strip tags
-    $plainText = strip_tags($content);
+   // Normal HTML content — strip tags
+$plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
   }
-  
+
   // Get first few lines for preview (max 4 lines)
   $lines = explode("\n", $plainText);
   $previewLines = array_slice($lines, 0, 4);
@@ -171,124 +170,210 @@ $folders_result = $conn->query($sql_folders);
 <script>
 
 /* ================= STATE ================= */
-let selected = new Set();
-let selecting = false;
+let selectedFolders = new Set();
+let folderSelecting = false;
+let selectedNotes = new Set();
+let noteSelecting = false;
 
-/* ================= HOLD SYSTEM ================= */
-function addHold(el, callback){
-  let timer;
-  let held = false;
+/* ================= FOLDER INTERACTIONS ================= */
+document.querySelectorAll(".folder").forEach(folder => {
+  const id = folder.dataset.id;
+  if (!id) return; // skip Add / Back buttons
 
-  el.addEventListener("touchstart", start);
-  el.addEventListener("mousedown", start);
+  let holdTimer = null;
+  let didHold = false;
+  let startX = 0;
+  let startY = 0;
+  const SCROLL_THRESHOLD = 8;
 
-  el.addEventListener("touchend", cancel);
-  el.addEventListener("mouseup", cancel);
-  el.addEventListener("mouseleave", cancel);
-
-  function start(e){
-    held = false;
-
-    timer = setTimeout(()=>{
-      held = true;
-      callback(e);
+  /* ---- TOUCH (mobile) ---- */
+  folder.addEventListener("touchstart", e => {
+    didHold = false;
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    holdTimer = setTimeout(() => {
+      didHold = true;
+      enterSelectionMode(folder, id);
     }, 600);
-  }
+  }, { passive: true });
 
-  function cancel(){
-    clearTimeout(timer);
-  }
+  folder.addEventListener("touchmove", e => {
+    if (!holdTimer) return;
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - startX) > SCROLL_THRESHOLD ||
+        Math.abs(t.clientY - startY) > SCROLL_THRESHOLD) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  }, { passive: true });
 
-  return () => held;
+  folder.addEventListener("touchend", e => {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+
+    if (didHold) {
+      didHold = false;
+      return; // hold already handled, don't open folder
+    }
+
+    if (folderSelecting) {
+      toggleFolder(folder, id);
+      return;
+    }
+
+    openFolder(id);
+  });
+
+  /* ---- MOUSE (desktop) ---- */
+  folder.addEventListener("mousedown", e => {
+    didHold = false;
+    holdTimer = setTimeout(() => {
+      didHold = true;
+      enterSelectionMode(folder, id);
+    }, 600);
+  });
+
+  folder.addEventListener("mouseup", () => {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  });
+
+  folder.addEventListener("mouseleave", () => {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  });
+
+  folder.addEventListener("click", e => {
+    if (didHold) { didHold = false; return; }
+    if (folderSelecting) { toggleFolder(folder, id); return; }
+    openFolder(id);
+  });
+});
+
+function enterSelectionMode(folder, id) {
+  // Add show-delete to THIS folder (don't remove from others already selected)
+  folder.classList.add("show-delete");
+  // Only switch bar once when first entering selection mode
+  if (!folderSelecting) {
+    folderSelecting = true;
+    switchFolderBar();
+  }
+  toggleFolder(folder, id);
+}
+
+function toggleFolder(folder, id){
+  if(selectedFolders.has(id)){
+    selectedFolders.delete(id);
+    folder.classList.remove("selected");
+    folder.classList.remove("show-delete");
+  } else {
+    selectedFolders.add(id);
+    folder.classList.add("selected");
+    folder.classList.add("show-delete");
+  }
+  if(selectedFolders.size === 0){
+    cancelFolderSelection();
+  }
+}
+
+function switchFolderBar(){
+  document.getElementById("bottomBar").innerHTML = `
+    <div class="item">
+      <button onclick="deleteSelectedFolders()"><img src="bin.png"></button>
+      <p>Delete</p>
+    </div>
+    <div class="item">
+      <button onclick="cancelFolderSelection()"><img src="back.png"></button>
+      <p>Cancel</p>
+    </div>
+  `;
+}
+
+function cancelFolderSelection(){
+  selectedFolders.clear();
+  folderSelecting = false;
+  document.querySelectorAll(".folder")
+    .forEach(f => { f.classList.remove("selected"); f.classList.remove("show-delete"); });
+  restoreBottomBar();
+}
+
+function restoreBottomBar(){
+  document.getElementById("bottomBar").innerHTML = `
+    <div class="item">
+      <button onclick="addnote()"><img src="addnote.png"></button>
+      <p>Add Subject</p>
+    </div>
+    <div class="item">
+      <button onclick="upload()"><img src="uploaded.png"></button>
+      <p>Uploads</p>
+    </div>
+    <div class="item">
+      <button onclick="noting()"><img src="notes.png"></button>
+      <p>Add Notes</p>
+    </div>
+  `;
+}
+
+function deleteSelectedFolders(){
+  if(selectedFolders.size === 0) return;
+
+  fetch("delete_multiple_folders.php", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ ids: JSON.stringify([...selectedFolders]) })
+  })
+  .then(res => res.text())
+  .then(() => location.reload());
 }
 
 /* ================= NOTES ================= */
-document.querySelectorAll(".notesv2-card").forEach(card=>{
-  let id = card.dataset.id;
+document.querySelectorAll(".notesv2-card").forEach(card => {
+  const id = card.dataset.id;
 
-  addHold(card, ()=>{
-    selecting = true;
-    switchBar();
-    toggle(card,id);
-  });
+  let holdTimer = null;
+  let didHold = false;
 
-  card.addEventListener("click", ()=>{
-    if(selecting){
-      toggle(card,id);
+  function startHold() {
+    didHold = false;
+    holdTimer = setTimeout(() => {
+      didHold = true;
+      noteSelecting = true;
+      switchNoteBar();
+      toggleNote(card, id);
+    }, 600);
+  }
+
+  function endHold() { clearTimeout(holdTimer); }
+
+  card.addEventListener("mousedown",  startHold);
+  card.addEventListener("touchstart", startHold, { passive: true });
+  card.addEventListener("mouseup",    endHold);
+  card.addEventListener("mouseleave", endHold);
+  card.addEventListener("touchend",   endHold);
+
+  card.addEventListener("click", () => {
+    if (didHold) { didHold = false; return; }
+    if (noteSelecting) {
+      toggleNote(card, id);
     } else {
       openNote(id);
     }
   });
 });
 
-/* ================= TOGGLE ================= */
-function toggle(card,id){
-  if(selected.has(id)){
-    selected.delete(id);
+/* ================= NOTE TOGGLE ================= */
+function toggleNote(card,id){
+  if(selectedNotes.has(id)){
+    selectedNotes.delete(id);
     card.classList.remove("selected");
   } else {
-    selected.add(id);
+    selectedNotes.add(id);
     card.classList.add("selected");
   }
 }
 
-/* ================= FOLDERS ================= */
-document.querySelectorAll(".folder").forEach(folder=>{
-  let id = folder.dataset.id;
-
-  // skip ADD button and back button (no data-id)
-  if(!id) return;
-
-  let isHeld = addHold(folder, ()=>{
-    folder.classList.add("show-delete");
-  });
-
-  folder.addEventListener("click", (e)=>{
-    if(isHeld()){
-      e.stopImmediatePropagation();
-      return;
-    }
-
-    if(selecting) return;
-
-    openFolder(id);
-  });
-});
-
-/* ================= CLICK OUTSIDE ================= */
-document.addEventListener("click", (e)=>{
-  if(!e.target.closest(".folder")){
-    document.querySelectorAll(".folder")
-      .forEach(f=>f.classList.remove("show-delete"));
-  }
-});
-
-/* ================= NAVIGATION ================= */
-function openFolder(id){
-  window.location.href = "notes.php?folder_id=" + id;
-}
-
-function openNote(id){
-  window.location.href = "edit_note.php?note_id=" + id;
-}
-
-/* ================= DELETE FOLDER ================= */
-function deleteFolder(id,e){
-  e.stopPropagation();
-
-  fetch("delete_folder.php",{
-    method:"POST",
-    body:new URLSearchParams({folder_id:id})
-  })
-  .then(res=>res.text())
-  .then(data=>{
-    console.log("delete folder:", data);
-    location.reload();
-  });
-}
-
-/* ================= BOTTOM BAR ================= */
-function switchBar(){
+function switchNoteBar(){
   document.getElementById("bottomBar").innerHTML = `
     <div class="item">
       <button onclick="openMove()"><img src="moveit.png"></button>
@@ -299,21 +384,19 @@ function switchBar(){
       <p>Delete</p>
     </div>
     <div class="item">
-      <button onclick="cancelSelection()"><img src="back.png"></button>
+      <button onclick="cancelNoteSelection()"><img src="back.png"></button>
       <p>Cancel</p>
     </div>
   `;
 }
 
-/* ================= CANCEL ================= */
-function cancelSelection(){
-  selected.clear();
-  selecting = false;
-
+/* ================= CANCEL NOTE SELECTION ================= */
+function cancelNoteSelection(){
+  selectedNotes.clear();
+  noteSelecting = false;
   document.querySelectorAll(".notesv2-card")
     .forEach(c=>c.classList.remove("selected"));
-
-  location.reload();
+  restoreBottomBar();
 }
 
 /* ================= DELETE NOTES ================= */
@@ -321,7 +404,7 @@ function deleteNotes(){
   fetch("delete_multiple_notes.php",{
     method:"POST",
     body:new URLSearchParams({
-      ids: JSON.stringify([...selected])
+      ids: JSON.stringify([...selectedNotes])
     })
   })
   .then(res=>res.text())
@@ -331,19 +414,28 @@ function deleteNotes(){
   });
 }
 
+/* ================= NAVIGATION ================= */
+function openFolder(id){
+  window.location.href = "notes.php?folder_id=" + id;
+}
+
+function openNote(id){
+  window.location.href = "edit_note.php?note_id=" + id;
+}
+
 /* ================= MOVE ================= */
 function openMove(){
   document.getElementById("moveModal").style.display = "flex";
 }
 
 function moveToFolder(folderId){
-  if(selected.size === 0){
+  if(selectedNotes.size === 0){
     alert("Select notes first");
     return;
   }
 
   let data = new URLSearchParams();
-  data.append("ids", JSON.stringify([...selected]));
+  data.append("ids", JSON.stringify([...selectedNotes]));
 
   if(folderId === null){
     data.append("folder_id", "NULL");

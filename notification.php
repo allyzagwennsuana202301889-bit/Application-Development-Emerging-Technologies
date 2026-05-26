@@ -2,9 +2,11 @@
 session_start();
 include 'database.php';
 
+// Generate missing notifications on page load
+include 'check_missing.php';
+
 $student_id = $_SESSION['student_id'] ?? 0;
 
-// UPDATES: Personal notifications only
 $sql_updates = "
     SELECT n.*, 
         COALESCE(s.subject_image, ns.subject_image) as subject_image,
@@ -24,7 +26,6 @@ $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $updates = $stmt->get_result();
 
-// MISSING: Personal only
 $sql_missing = "
     SELECT n.*, 
         COALESCE(s.subject_image, ns.subject_image) as subject_image,
@@ -42,7 +43,6 @@ $stmt2->bind_param("i", $student_id);
 $stmt2->execute();
 $missing = $stmt2->get_result();
 
-// Count unread
 $count_stmt = $conn->prepare("
     SELECT COUNT(*) as count FROM notification 
     WHERE student_id = ? AND status = 'unread'
@@ -51,124 +51,63 @@ $count_stmt->bind_param("i", $student_id);
 $count_stmt->execute();
 $unread_count = $count_stmt->get_result()->fetch_assoc()['count'] ?? 0;
 
-// Helper: Determine actual source type by checking which table the subject exists in
 function getActualSourceType($conn, $subject_id) {
-    // Check notes first
     $check = $conn->prepare("SELECT 1 FROM notes WHERE note_id = ? AND type = 'subject' LIMIT 1");
     $check->bind_param("i", $subject_id);
     $check->execute();
-    if ($check->get_result()->num_rows > 0) {
-        return 'notes';
-    }
-    
-    // Then check subjects
+    if ($check->get_result()->num_rows > 0) return 'notes';
     $check = $conn->prepare("SELECT 1 FROM subjects WHERE subject_id = ? LIMIT 1");
     $check->bind_param("i", $subject_id);
     $check->execute();
-    if ($check->get_result()->num_rows > 0) {
-        return 'subjects';
-    }
-    
-    return 'subjects'; // fallback
+    if ($check->get_result()->num_rows > 0) return 'subjects';
+    return 'subjects';
 }
 
 function isSubjectAdded($conn, $student_id, $subject_id) {
     $source_type = getActualSourceType($conn, $subject_id);
-    
-    $check = $conn->prepare("
-        SELECT 1 FROM student_subjects 
-        WHERE student_id = ? AND subject_id = ? AND source_type = ?
-        LIMIT 1
-    ");
+    $check = $conn->prepare("SELECT 1 FROM student_subjects WHERE student_id = ? AND subject_id = ? AND source_type = ? LIMIT 1");
     $check->bind_param("iis", $student_id, $subject_id, $source_type);
     $check->execute();
-    $result = $check->get_result();
-    
-    return $result->num_rows > 0;
+    return $check->get_result()->num_rows > 0;
 }
 
 function buildActionUrl($row) {
     global $conn;
-    
     $subject_id = (int)($row['subject_id'] ?? 0);
     $type = $row['type'] ?? '';
-    
-    if ($subject_id === 0) {
-        return 'homepage.php';
-    }
-    
-    // Determine what kind of subject this is
+    if ($subject_id === 0) return 'homepage.php';
     $is_preset = false;
     $is_published_note = false;
-    
-    // Check if it's a preset in subjects table
     $check_preset = $conn->prepare("SELECT is_preset FROM subjects WHERE subject_id = ? LIMIT 1");
     $check_preset->bind_param("i", $subject_id);
     $check_preset->execute();
     $preset_result = $check_preset->get_result()->fetch_assoc();
-    if ($preset_result && (int)$preset_result['is_preset'] === 1) {
-        $is_preset = true;
-    }
-    
-    // Check if it's a published note
+    if ($preset_result && (int)$preset_result['is_preset'] === 1) $is_preset = true;
     $check_note = $conn->prepare("SELECT 1 FROM notes WHERE note_id = ? AND type = 'subject' LIMIT 1");
     $check_note->bind_param("i", $subject_id);
     $check_note->execute();
-    if ($check_note->get_result()->num_rows > 0) {
-        $is_published_note = true;
-    }
-    
+    if ($check_note->get_result()->num_rows > 0) $is_published_note = true;
     $source_type = $is_published_note ? 'notes' : 'subjects';
-    
-    // PRESETS: Always go directly to subject.php (no need to add first)
-    if ($is_preset) {
-        return 'subject.php?id=' . $subject_id . '&type=subjects';
-    }
-    
-    // PUBLISHED/UNPUBLISHED SUBJECTS (notes): Check if added first
-    if (strpos($type, 'subject_published') !== false || 
-        strpos($type, 'subject_unpublished') !== false) {
-        
+    if ($is_preset) return 'subject.php?id=' . $subject_id . '&type=subjects';
+    if (strpos($type, 'subject_published') !== false || strpos($type, 'subject_unpublished') !== false) {
         $added = isSubjectAdded($conn, $_SESSION['student_id'] ?? 0, $subject_id);
-        
-        if ($added) {
-            return 'subject.php?id=' . $subject_id . '&type=' . $source_type;
-        } else {
-            return 'view_subject.php?subject_id=' . $subject_id;
-        }
+        return $added ? 'subject.php?id=' . $subject_id . '&type=' . $source_type : 'view_subject.php?subject_id=' . $subject_id;
     }
-    
-    // For other types, use stored action_url if available
-    if (!empty($row['action_url']) && strpos($row['action_url'], '.php') !== false) {
-        return $row['action_url'];
-    }
-    
-    if (strpos($type, 'quiz') !== false) {
-        return 'quiz.php?id=' . $subject_id . '&type=' . $source_type;
-    }
-    
+    if (!empty($row['action_url']) && strpos($row['action_url'], '.php') !== false) return $row['action_url'];
+    if (strpos($type, 'quiz') !== false) return 'quiz.php?id=' . $subject_id . '&type=' . $source_type;
     return 'subject.php?id=' . $subject_id . '&type=' . $source_type;
 }
 
 function getNotifImage($row) {
-    if (!empty($row['subject_image'])) {
-        return htmlspecialchars($row['subject_image']);
-    }
+    if (!empty($row['subject_image'])) return htmlspecialchars($row['subject_image']);
     $icons = [
-        'preset_uploaded' => 'upload.png',
-        'preset_edited' => 'globe.png',
-        'preset_deleted' => 'del.png',
-        'subject_published' => 'globe.png',
-        'subject_unpublished' => 'folder.png',
-        'subject_edited' => 'globe.png',
-        'subject_uploaded' => 'upload.png',
-        'subject_added' => 'globe.png',
-        'quiz_published' => 'dna.png',
-        'quiz_unpublished' => 'dna.png',
-        'quiz_edited' => 'dna.png',
-        'no_progress' => 'folder.png',
-        'no_quiz' => 'dna.png',
-        'welcome' => 'globe.png'
+        'preset_uploaded' => 'upload.png', 'preset_edited' => 'file.png',
+        'preset_deleted' => 'del.png', 'subject_published' => 'file.png',
+        'subject_unpublished' => 'folder.png', 'subject_edited' => 'file.png',
+        'subject_uploaded' => 'upload.png', 'subject_added' => 'file.png',
+        'quiz_published' => 'dna.png', 'quiz_unpublished' => 'file.png',
+        'quiz_edited' => 'dna.png', 'no_progress' => 'file.png',
+        'no_quiz' => 'dna.png', 'welcome' => 'file.png'
     ];
     return $icons[$row['type'] ?? ''] ?? 'file.png';
 }
@@ -226,9 +165,7 @@ function getNotifImage($row) {
                                 <img src="check.png">
                             </div>
                             <div class="notif-icon">
-                                <img src="<?= getNotifImage($row) ?>" 
-                                     alt="icon"
-                                     onerror="this.src='file.png'">
+                                <img src="<?= getNotifImage($row) ?>" alt="icon" onerror="this.src='file.png'">
                             </div>
                             <div class="notif-text">
                                 <p class="notif-title"><?= htmlspecialchars($row['title']) ?></p>
@@ -237,9 +174,7 @@ function getNotifImage($row) {
                         </div>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <div class="empty-state">
-                        <p>No updates yet</p>
-                    </div>
+                    <div class="empty-state"><p>No updates yet</p></div>
                 <?php endif; ?>
             </div>
 
@@ -262,9 +197,7 @@ function getNotifImage($row) {
                                 <img src="check.png">
                             </div>
                             <div class="notif-icon">
-                                <img src="<?= getNotifImage($row) ?>" 
-                                     alt="icon"
-                                     onerror="this.src='file.png'">
+                                <img src="<?= getNotifImage($row) ?>" alt="icon" onerror="this.src='file.png'">
                             </div>
                             <div class="notif-text">
                                 <p class="notif-title"><?= htmlspecialchars($row['title']) ?></p>
@@ -273,9 +206,7 @@ function getNotifImage($row) {
                         </div>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <div class="empty-state">
-                        <p>You're all caught up!</p>
-                    </div>
+                    <div class="empty-state"><p>You're all caught up!</p></div>
                 <?php endif; ?>
             </div>
 
@@ -299,9 +230,9 @@ function getNotifImage($row) {
                 <img src="del.png">
                 <p>Delete Selected</p>
             </div>
-            <div class="action" onclick="markAllRead()">
-                <img src="markmssg.png">
-                <p>Mark all as read</p>
+            <div class="action" onclick="cancelDeleteMode()">
+                <img src="back.png">
+                <p>Cancel</p>
             </div>
         </div>
 
@@ -345,14 +276,15 @@ function getNotifImage($row) {
         selectedItems.clear();
         document.getElementById('bottomActions').classList.add('hidden');
         document.getElementById('deleteModeBar').classList.remove('hidden');
-
         document.querySelectorAll('.notif-item').forEach(item => {
-            item.classList.add('delete-mode-active');
-            const check = item.querySelector('.check-icon');
-            const icon = item.querySelector('.notif-icon');
-            if (check) check.classList.remove('hidden');
-            if (icon) icon.classList.add('hidden');
-        });
+    item.classList.remove('delete-mode-active', 'selected');
+    const icon = item.querySelector('.notif-icon img');
+    if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
+    const check = item.querySelector('.check-icon');
+    if (check) check.classList.add('hidden');
+    const notifIcon = item.querySelector('.notif-icon');
+    if (notifIcon) notifIcon.classList.remove('hidden');
+});
     }
 
     function cancelDeleteMode() {
@@ -360,38 +292,42 @@ function getNotifImage($row) {
         selectedItems.clear();
         document.getElementById('bottomActions').classList.remove('hidden');
         document.getElementById('deleteModeBar').classList.add('hidden');
-
         document.querySelectorAll('.notif-item').forEach(item => {
-            item.classList.remove('delete-mode-active', 'selected');
-            const check = item.querySelector('.check-icon');
-            const icon = item.querySelector('.notif-icon');
-            if (check) {
-                check.classList.add('hidden');
-                check.querySelector('img').src = 'check.png';
-            }
-            if (icon) icon.classList.remove('hidden');
-        });
+    item.classList.remove('delete-mode-active', 'selected');
+    const icon = item.querySelector('.notif-icon img');
+    if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
+    const check = item.querySelector('.check-icon');
+    if (check) check.classList.add('hidden');
+    const notifIcon = item.querySelector('.notif-icon');
+    if (notifIcon) notifIcon.classList.remove('hidden');
+});
     }
 
-    function toggleSelect(notifId, element) {
-        if (!deleteMode) return;
+function toggleSelect(notifId, element) {
+    if (!deleteMode) return;
 
-        if (selectedItems.has(notifId)) {
-            selectedItems.delete(notifId);
-            element.classList.remove('selected');
-            const check = element.querySelector('.check-icon img');
-            if (check) check.src = 'bluecheck.png';
-        } else {
-            selectedItems.add(notifId);
-            element.classList.add('selected');
-            const check = element.querySelector('.check-icon img');
-            if (check) check.src = 'bluecheck.png';
-        }
+    const icon = element.querySelector('.notif-icon img');
+    const checkImg = element.querySelector('.check-icon img');
 
-        if (selectedItems.size === 0) {
-            cancelDeleteMode();
+    if (selectedItems.has(notifId)) {
+        // Uncheck - restore original icon
+        selectedItems.delete(notifId);
+        element.classList.remove('selected');
+        if (icon) icon.src = element.dataset.originalImg;
+    } else {
+        // Check - save original icon, show check
+        selectedItems.add(notifId);
+        element.classList.add('selected');
+        if (icon && !element.dataset.originalImg) {
+            element.dataset.originalImg = icon.src;
         }
+        if (icon) icon.src = 'bluecheck.png';
     }
+
+    if (selectedItems.size === 0) {
+        cancelDeleteMode();
+    }
+}
 
     function deleteSelected() {
         if (selectedItems.size === 0) {
@@ -400,7 +336,10 @@ function getNotifImage($row) {
         }
         if (!confirm('Delete ' + selectedItems.size + ' notification(s)?')) return;
 
+        // Save IDs before cancelDeleteMode clears selectedItems
         const ids = Array.from(selectedItems).join(',');
+        cancelDeleteMode();
+
         fetch('api_notification.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -409,11 +348,10 @@ function getNotifImage($row) {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                selectedItems.forEach(id => {
+                ids.split(',').forEach(id => {
                     const item = document.querySelector('[data-id="' + id + '"]');
                     if (item) item.remove();
                 });
-                cancelDeleteMode();
                 updateBadge();
             }
         });
@@ -447,8 +385,6 @@ function getNotifImage($row) {
 
         if (url && url !== '' && url !== 'homepage.php') {
             window.location.href = url;
-        } else {
-            console.log('No valid URL for notification', notifId, 'URL:', url);
         }
     }
 
@@ -478,28 +414,25 @@ function getNotifImage($row) {
         });
     }
 
-
     function deleteAll() {
-    if (!confirm('Delete all notifications?')) return;
-
-    fetch('api_notification.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=delete_all'
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.querySelectorAll('.notif-item').forEach(item => item.remove());
-            // Show empty state
-            const section = document.getElementById(currentTab + 'Section');
-            if (section.querySelectorAll('.notif-item').length === 0) {
-                section.innerHTML = '<div class="empty-state"><p>No ' + (currentTab === 'updates' ? 'updates' : 'missing items') + ' yet</p></div>';
+        if (!confirm('Delete all notifications?')) return;
+        fetch('api_notification.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=delete_all'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.querySelectorAll('.notif-item').forEach(item => item.remove());
+                const section = document.getElementById(currentTab + 'Section');
+                if (section.querySelectorAll('.notif-item').length === 0) {
+                    section.innerHTML = '<div class="empty-state"><p>No ' + (currentTab === 'updates' ? 'updates' : 'missing items') + ' yet</p></div>';
+                }
+                updateBadge();
             }
-            updateBadge();
-        }
-    });
-}
+        });
+    }
 
     function goBack() { window.history.back(); }
     </script>

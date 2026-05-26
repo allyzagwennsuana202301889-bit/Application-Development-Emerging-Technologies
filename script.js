@@ -106,6 +106,11 @@ function upload() {
   window.location.href = "Uploaded notes.php";
 }
 
+function fax() {
+  window.location.href = "faq.html";
+}
+
+
 function quiz() {
   window.location.href = "flashcards.php";
 }
@@ -152,25 +157,18 @@ function noting() {
   window.location.href = "writenotes.php"
 }
 
-function deleteNote(id) {
-  if (!confirm("Delete this note?")) return;
+function deleteNote(id){
+  if (!confirm("Delete this note and its quiz?")) return;
 
   fetch("deletenote.php", {
     method: "POST",
-    headers: {"Content-Type": "application/x-www-form-urlencoded"},
-    body: "note_id=" + id
+    body: new URLSearchParams({ note_id: id })
   })
   .then(res => res.text())
   .then(data => {
-    console.log("Server:", data);
-
-    if (data === "deleted") {
-      location.reload();
-    } else {
-      alert("Delete failed: " + data);
-    }
-  })
-  .catch(err => console.error(err));
+    console.log("delete:", data);
+    location.reload();
+  });
 }
 
 function togglePublish(id, currentType) {
@@ -669,3 +667,15 @@ function uploadPFP() {
   }
 
 })();
+
+
+//homepage subject removal
+function removeSubject(subjectId, sourceType) {
+  if (!confirm("Remove this subject from your list?")) return;
+  fetch("remove_subject.php", {
+    method: "POST",
+    body: new URLSearchParams({ subject_id: subjectId, source_type: sourceType })
+  })
+  .then(res => res.text())
+  .then(() => location.reload());
+}
