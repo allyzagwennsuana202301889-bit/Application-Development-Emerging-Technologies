@@ -31,6 +31,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 /* FORM MUST BE FLEX TOO */
@@ -162,13 +163,14 @@ body {
 /* ========== NOTIFICATION PAGE ========== */
 
 .top-bars {
-     height: 100px;
+    height: 80px;           /* ← REDUCED from 100px */
     background: #3B8BFF;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 15px;
     flex-shrink: 0;
+    margin-bottom: -1px; 
 }
 
 .top-left {
@@ -209,6 +211,7 @@ body {
     background: #3B8BFF;
     padding: 0 20px;
     flex-shrink: 0;
+    margin-top: -1px;
 }
 
 .tab-btn {

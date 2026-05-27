@@ -215,7 +215,9 @@ list($insight_text, $focus_subject) = generateInsight($subject_data, $average, $
   <!-- NAV -->
   <nav class="nav">
     <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-    <img src="bell.png" class="bell" onclick="notif()">
+   <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bell">
+    <span class="notif-dot" id="bellDot"></span>
   </nav>
 
   <!-- SIDEBAR -->

@@ -777,19 +777,23 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         <nav class="nav">
             <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
             <div class="nav-right">    
-                <img src="bell.png" onclick="notif()" >
+               <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bells">
+    <span class="notif-dot" id="bellDot"></span>
+</div> 
                 <img src="back.png" class="back-btn-icon" onclick="goBack()" alt="Back">
             </div>
         </nav>
 
         <div class="nav-links" id="sidebar">
             <div class="top-icons">
-                <img src="FAQIcon.png" class="help" alt="Help">
+                <img src="FAQIcon.png"  onclick="fax()" class="help" alt="Help">
                 <img src="back.png" class="back" onclick="toggleSidebar()" alt="Close">
             </div>
 
     <?php
 // Fetch current user's profile image fresh from DB
+$student_id = isset($_SESSION['student_id']) ? (int)$_SESSION['student_id'] : 0;
 $pfp_stmt = $conn->prepare("SELECT profile_image FROM student WHERE student_id = ?");
 $pfp_stmt->bind_param("i", $student_id);
 $pfp_stmt->execute();

@@ -9,37 +9,95 @@
 body {
   margin: 0;
   background: #111;
-
 }
-
-
 
 .container {
   width: 100%;
   height: 100vh;
-  max-width: 412px;   /* keeps phone feel on desktop */
+  max-width: 412px;
   margin: 0 auto;
   background: #3B8BFF;
   position: relative;
   overflow: hidden;
 }
-    .hamburger {
-      font-size: 40px;
-      cursor: pointer;
-      margin-left: 10px;
-      flex-shrink: 0;
-    }
 
-    .nav{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px;
-    margin-top: 20px;
-    }
+.hamburger {
+  font-size: 40px;
+  cursor: pointer;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
 
-    /* MENU */
-   .nav-links {
+/* ========== FIXED NAV ========== */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 20px;
+}
+
+/* Hamburger stays left */
+.hamburger {
+  font-size: 40px;
+  cursor: pointer;
+  flex-shrink: 0;
+  z-index: 2;
+  margin-left: 10px;
+}
+
+/* Search bar centers in the middle space */
+#searchInput {
+  flex: 1;
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  background: #3973DA;
+  color: white;
+  text-align: center;
+}
+
+#searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+}
+
+/* Bell wrapper stays right */
+.bell-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.bell {
+  width: 50px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.notif-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background: #FF4444;
+  border-radius: 50%;
+  display: none;
+}
+
+.notif-dot.active {
+  display: block;
+}
+
+/* MENU */
+.nav-links {
   position: absolute;
   top: 0;
   left: -100%;
@@ -56,14 +114,12 @@ body {
   font-style: italic;
 }
 
-
 .nav-links a:last-child {
-  margin-top: 0;        /* remove the push */
-  padding-bottom: 15px; /* keep some spacing */
+  margin-top: 0;
+  padding-bottom: 15px;
   border-bottom: 1px solid #aaa;
 }
 
-/* when open */
 .nav-links.active {
   left: 0;
 }
@@ -127,8 +183,7 @@ body {
   border-bottom: 1px solid #bbb;
 }
 
-
-.bottom{
+.bottom {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -139,9 +194,9 @@ body {
   padding: 16px 20px; 
   background: #3B8BFF;
   z-index: 100;
-
 }
-.bottom-notes{
+
+.bottom-notes {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -152,7 +207,6 @@ body {
   padding: 16px 15px; 
   background: #3B8BFF;
   z-index: 100;
-
 }
 
 .file-section {
@@ -162,19 +216,19 @@ body {
   color: white;
 }
 
-.file-section img{
+.file-section img {
   width: 80px;
   height: 70px;
   margin-bottom: 5px;
 }
 
-.bottom-notes img{
-  width:80px;
+.bottom-notes img {
+  width: 80px;
   height: 70px;
   margin-bottom: 5px;
 }
 
-.file-section p,.bottom-notes p{
+.file-section p, .bottom-notes p {
   font-size: 14px;
 }
 
@@ -187,7 +241,6 @@ body {
   font-size: 16px;
   cursor: pointer;
 }
-
 
 .bottom-add-section {
   position: fixed;
@@ -202,7 +255,6 @@ body {
   padding: 10px 0;
 }
 
-
 .bottom-add-section .item {
   display: flex;
   flex-direction: column;
@@ -210,13 +262,11 @@ body {
   justify-content: center;
 }
 
-
 .bottom-add-section img {
   width: 80px;
   height: 70px;
   object-fit: contain;
 }
-
 
 .bottom-add-section p {
   margin-top: 5px;
@@ -224,34 +274,7 @@ body {
   color: white;
 }
 
-#searchInput {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);  
-  width: 60%;
-  max-width: 260px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: none;
-  background: #3973DA;
-  color: white;
-  text-align: center;
-}
-
-#searchInput::placeholder {
-  color: rgba(255, 255, 255, 0.85);
-  text-align: center;
-}
-
-.bell{
-  margin-left: auto;
-  width: 50px;
-  z-index: 2;
-  height: 60px;
-  flex-shrink: 0;
-}
-
-.bells{
+.bells {
   margin-left: 210px;
   width: 50px;
   z-index: 2;
@@ -279,7 +302,7 @@ body {
   object-fit: contain;
 }
 
-.bottom-file-section{
+.bottom-file-section {
   position: fixed;
   bottom: 0;
   width: 100%;
@@ -292,27 +315,25 @@ body {
   padding: 10px 0;
 }
 
-
-
-.item{
+.item {
   display: flex;
   flex-direction: column; 
   align-items: center;
 }
 
-.bottom-file-section p{
+.bottom-file-section p {
   font-size: 14px;
   margin: 5px 0 0;
   color: #ffffff;
   font-weight: 500;
 }
 
-.bottom-file-section img{
+.bottom-file-section img {
   width: 80px;
   height: 70px;
 }
 
-button,.file-section button{
+button, .file-section button {
   background: none;
   border: none;
   padding: 0;
@@ -329,14 +350,12 @@ button,.file-section button{
   padding: 20px;
 }
 
-/* LOGO */
 .login-box img {
   width: 180px;
   height: 147px;
-  margin-top:-100px;
+  margin-top: -100px;
 }
 
-/* TITLE */
 .login-box h1 {
   font-size: 40px;
   font-family: 'Inria Sans', sans-serif;
@@ -346,7 +365,6 @@ button,.file-section button{
   color: white;
 }
 
-/* SUBTEXT */
 .login-box .sub {
   font-size: 20px;
   margin-bottom: 25px;
@@ -356,8 +374,6 @@ button,.file-section button{
   font-family: 'Itim', cursive;
   font-style: italic;
 }
-
-/* INPUTS */
 
 .login-box form {
   display: flex;
@@ -387,26 +403,21 @@ button,.file-section button{
   font-style: italic;
   cursor: pointer;
   margin-top: 50px;
-
 }
-
 
 .subjects-container {
   position: absolute;
-  top: 90px;        /* below navbar */
-  bottom: 100px;    /* above bottom bar */
+  top: 90px;
+  bottom: 100px;
   left: 0;
   right: 0;
-
   overflow-y: auto;
   padding: 15px;
-
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* CARD */
 .subject-card {
   position: relative; 
   background: #e9e9e9;
@@ -417,14 +428,13 @@ button,.file-section button{
   align-items: center;
 }
 
-/* hide scrollbar but still scrollable */
 .subjects-container::-webkit-scrollbar {
   display: none;
 }
 
 .subjects-container {
-  -ms-overflow-style: none;  /* IE/Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   padding-bottom: 70px;
 }
 
@@ -445,28 +455,25 @@ button,.file-section button{
   height: 50px;
 }
 
-
-
-/* LEFT SIDE */
 .card-left h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 500;
 }
 
-.card-left p{
-  font-family:'Itim', cursive;
+.card-left p {
+  font-family: 'Itim', cursive;
 }
 
-.card-left{
+.card-left {
   font-family: 'itim', cursive;
 }
+
 .uploaded {
   font-size: 13px;
   margin: 8px 0;
 }
 
-/* BUTTON */
 .study-btn {
   background: #3B8BFF;
   color: white;
@@ -478,24 +485,16 @@ button,.file-section button{
   cursor: pointer;
 }
 
-/* RIGHT SIDE */
 .card-right {
   text-align: center;
 }
 
-
-
-/* PROGRESS */
 .progress {
   color: #F4A261;
   font-size: 22px;
   margin-top: 5px;
 }
 
-
-/* SCROLL AREA */
-
-/* TOP CARD */
 .subject-top-card {
   background: #e9e9e9;
   border-radius: 12px;
@@ -515,17 +514,13 @@ button,.file-section button{
   margin-top: 5px;
 }
 
-
-
-
 .progress {
   color: #F4A261;
   font-size: 22px;
   margin-top: 5px;
 }
 
-/* MAIN CONTENT CARD */
- .subject-main-cards{
+.subject-main-cards {
   background: #e9e9e9;
   border-radius: 12px;
   padding: 20px;
@@ -533,13 +528,11 @@ button,.file-section button{
   gap: 15px;
 }
 
-/* LEFT ICON */
 .icon-side {
   font-size: 50px;
   color: #F4A261;
 }
 
-/* TEXT */
 .text-side h3 {
   font-size: 22px;
   margin-bottom: 10px;
@@ -549,7 +542,6 @@ button,.file-section button{
   font-size: 14px;
   line-height: 1.6;
 }
-
 
 .folders {
   display: flex;
@@ -580,25 +572,19 @@ button,.file-section button{
   margin: 0 auto 5px;
 }
 
-
-
 .notes-container {
   position: absolute;
-  top: 120px;      /* below nav + folders */
-  bottom: 100px;   /* above bottom bar */
+  top: 120px;
+  bottom: 100px;
   left: 0;
   right: 0;
-
   overflow-y: auto;
   padding: 10px 15px;
-
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-
-/* hide scrollbar (optional) */
 .notes-container::-webkit-scrollbar {
   display: none;
 }
@@ -616,21 +602,20 @@ button,.file-section button{
 }
 
 .subject-top .right {
-  flex-shrink: 0; /* stops it from stretching weirdly */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 40%; /* limit width */
+  max-width: 40%;
 }
 
 .subject-image {
-  width: 100px;       /* fixed size */
+  width: 100px;
   height: 100px;
-  object-fit: cover;  /* prevents distortion */
-  border-radius: 50%; /* optional: circle look */
+  object-fit: cover;
+  border-radius: 50%;
 }
 
-/* TOP CARD */
 .subject-top {
   background: #e9e9e9;
   border-radius: 10px;
@@ -650,14 +635,10 @@ button,.file-section button{
   font-size: 14px;
 }
 
-/* BODY */
 .subject-body {
   padding: 10px 0px 100px;
 }
 
-
-
-/* FILE ICON */
 .upload-label img {
   width: 80px;
 }
@@ -667,8 +648,6 @@ button,.file-section button{
   font-size: 14px;
 }
 
-
-/* BUTTON */
 .upload-btn {
   margin-top: 15px;
   padding: 10px 20px;
@@ -679,7 +658,6 @@ button,.file-section button{
   cursor: pointer;
 }
 
-/* TITLE INPUT */
 .subject-input {
   border: none;
   background: transparent;
@@ -689,11 +667,6 @@ button,.file-section button{
   font-family: 'Inria Sans', sans-serif;
 }
 
-
-
-
-
-/* upload icon */
 .upload-center {
   text-align: center;
   cursor: pointer;
@@ -703,9 +676,6 @@ button,.file-section button{
 .upload-center img {
   width: 70px;
 }
-
-
-
 
 .upload-box {
   background: #e9e9e9;
@@ -734,11 +704,10 @@ button,.file-section button{
   text-align: center;
   padding: 10px;
   overflow-y: auto;
-  box-sizing: border-box;      /* prevents width overflow */
-  word-break: break-all;       /* breaks long words */
-  overflow-wrap: break-word;   /* fallback */
+  box-sizing: border-box;
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
-
 
 .modal {
   position: fixed;
@@ -762,7 +731,6 @@ button,.file-section button{
   position: relative;
 }
 
-/* SEARCH */
 .search-box {
   padding: 20px;
 }
@@ -775,7 +743,6 @@ button,.file-section button{
   background: #ddd;
 }
 
-/* LIST */
 .subject-list {
   padding: 10px 20px 80px;
   overflow-y: auto;
@@ -795,7 +762,6 @@ button,.file-section button{
   color: gray;
 }
 
-/* CLOSE ARROW */
 .bottom-arrow {
   position: absolute;
   bottom: 10px;
@@ -807,19 +773,14 @@ button,.file-section button{
 
 .content-scroll {
   position: absolute;
-  top: 80px;     /* below navbar */
-  bottom: 90px;  /* above bottom nav */
+  top: 80px;
+  bottom: 90px;
   left: 0;
   right: 0;
-
   overflow-y: auto;
   padding-bottom: 20px;
 }
 
-
-
-
-/* SCROLL AREA */
 .drafts-container {
   position: absolute;
   top: 200px;
@@ -831,22 +792,18 @@ button,.file-section button{
   display: flex;
   flex-direction: column;
   gap: 20px;
-
 }
 
-/* hide scrollbar */
 .drafts-container::-webkit-scrollbar {
   display: none;
 }
 
-/* CARD */
 .draft-card {
   background: #e9e9e9;
   padding: 20px;
   position: relative;
 }
 
-/* DOWNLOAD ICON (top right) */
 .draft-download {
   position: absolute;
   top: 8px;
@@ -855,14 +812,12 @@ button,.file-section button{
   height: 50px;
 }
 
-/* MAIN LAYOUT */
 .draft-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* LEFT SIDE */
 .draft-left h3 {
   font-size: 26px;
   margin: 0;
@@ -874,14 +829,13 @@ button,.file-section button{
   font-family: 'Itim', cursive;
 }
 
-/* LEFT BUTTONS (stacked like screenshot) */
 .draft-left-btns {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  align-items: flex-start; /* 🔥 prevents stretching */
+  align-items: flex-start;
 }
-/* RIGHT SIDE */
+
 .draft-right {
   display: flex;
   flex-direction: column;
@@ -889,13 +843,11 @@ button,.file-section button{
   gap: 15px;
 }
 
-/* ICON */
 .draft-icon {
   width: 80px;
   height: 80px;
 }
 
-/* BUTTONS */
 .btn-read,
 .btn-delete,
 .btn-unpublish {
@@ -908,28 +860,21 @@ button,.file-section button{
   font-size: 14px;
 }
 
-/* make unpublish wider like screenshot */
 .btn-unpublish {
   padding: 10px 20px;
 }
 
-/* right button */
 .draft-right-btn {
   display: flex;
 }
 
-/* buttons */
-/* ALL BUTTONS SAME WIDTH */
 .btn-read,
 .btn-delete,
 .btn-unpublish {
-  width: 120px;      
+  width: 120px;
   text-align: center;
 }
 
-
-
-/* Read-only styles */  
 .subject-content {
   position: absolute;
   top: 90px;
@@ -942,19 +887,17 @@ button,.file-section button{
   gap: 15px;
   overflow-y: auto;
   padding-bottom: 50px;
-  -ms-overflow-style: none;  /* IE/Edge */
-  scrollbar-width: none;   
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .subject-content::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+  display: none;
 }
 
 .add-btn-wrapper {
   display: none;
 }
-
-
 
 .top-left {
   display: flex;
@@ -977,7 +920,6 @@ button,.file-section button{
   font-family: 'Itim', cursive;
 }
 
-/* RIGHT IMAGE */
 .top-right {
   display: flex;
   align-items: center;
@@ -995,7 +937,6 @@ button,.file-section button{
   max-width: 100%;
 }
 
-/* CARD CONTAINER */
 #cardContainer {
   display: flex;
   flex-direction: column;
@@ -1003,23 +944,20 @@ button,.file-section button{
   margin-top: 5px;
 }
 
-/* CARD */
 .subject-main-card {
   background: #e9e9e9;
   border-radius: 16px;
   padding: 20px;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 12px;
- width: 100%;
+  width: 100%;
   max-width: 100%;
   position: relative;
 }
 
-/* DELETE BTN */
 .delete-card-btn {
   position: absolute;
   top: 8px;
@@ -1040,34 +978,28 @@ button,.file-section button{
   justify-content: center;
 }
 
-/* IMAGE */
 .card-image-preview {
-   max-width: 100%;
+  max-width: 100%;
   height: auto;
   object-fit: cover;
   border-radius: 12px;
 }
 
-/* ENABLE CLICK ONLY IN EDIT */
-
 .edit-mode .card-image-label {
   pointer-events: auto;
 }
 
-/* TITLE */
 .card-title {
   width: 100%;
   font-size: 18px;
   font-weight: bold;
   text-align: center;
-  box-sizing: border-box; 
+  box-sizing: border-box;
   border: none;
   border-bottom: 1px solid #ccc;
   background: transparent;
   outline: none;
 }
-
-/* DESCRIPTION */
 
 .fake-desc {
   width: 100%;
@@ -1080,7 +1012,6 @@ button,.file-section button{
   box-sizing: border-box;
 }
 
-/* Lists inside fake-desc need left-align and padding */
 .fake-desc ul,
 .fake-desc ol {
   text-align: left;
@@ -1094,8 +1025,6 @@ button,.file-section button{
   text-align: left;
 }
 
-
-/* EDIT MODE VISUALS */
 .edit-mode .subject-title-input {
   border-bottom: 2px solid black;
 }
@@ -1106,26 +1035,21 @@ button,.file-section button{
   border-radius: 6px;
 }
 
-
 .notesv2-container {
   position: absolute;
   top: 80px;
   bottom: 90px;
   left: 0;
   right: 0;
-
   display: flex;
   flex-direction: column;
-
-  /* IMPORTANT */
-  overflow: hidden; /* keep this */
+  overflow: hidden;
 }
 
-/* folders row */
 .notesv2-folders {
   display: flex;
-  flex-direction: row ;
-  flex-wrap: nowrap ;
+  flex-direction: row;
+  flex-wrap: nowrap;
   overflow-x: auto;
 }
 
@@ -1147,11 +1071,10 @@ button,.file-section button{
   height: 60px;
 }
 
-/* notes list */
 .notesv2-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px 16px 140px 16px; /* INCREASE bottom padding from 100px to 140px */
+  padding: 10px 16px 140px 16px;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -1162,25 +1085,23 @@ button,.file-section button{
   display: none;
 }
 
-/* note card */
 .notesv2-card {
   background: white;
   border-radius: 14px;
   padding: 0;
   font-family: 'Inria Sans', sans-serif;
   box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-  overflow: hidden; /* keep this for rounded corners */
+  overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease;
   min-height: 200px;
   word-break: break-word;
   overflow-wrap: break-word;
-  margin: 0 12px 16px 12px; /* ADD bottom margin between cards */
+  margin: 0 12px 16px 12px;
   display: flex;
-  flex-direction: column; /* ADD - makes card stretch with content */
+  flex-direction: column;
 }
 
-/* delete button */
 .notesv2-delete-btn {
   position: absolute;
   top: 0;
@@ -1197,12 +1118,10 @@ button,.file-section button{
   display: block;
 }
 
-/* FIX: allow absolute button positioning */
 .notesv2-folder {
   position: relative;
 }
 
-/* OPTIONAL: selection highlight so user sees it */
 .notesv2-card.selected {
   outline: 3px solid #F4A261;
   background: #fff3e6;
@@ -1217,16 +1136,15 @@ button,.file-section button{
   display: none;
   justify-content: center;
   align-items: center;
-
-  background: rgba(0,0,0,0.4); /* optional dark overlay */
-  z-index: 9999; 
+  background: rgba(0,0,0,0.4);
+  z-index: 9999;
 }
 
 .modal-contentss {
   background: #fff;
   padding: 20px;
   border-radius: 10px;
-  z-index: 10000; /* must be higher than everything */
+  z-index: 10000;
 }
 
 .folder-option {
@@ -1239,442 +1157,421 @@ button,.file-section button{
 .folder-option:hover {
   background: #ddd;
 }
- 
 
-/* FIX: Lesson images don't overflow */
 .lesson-item {
-    background: #e9e9e9;
-    border-radius: 16px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
+  background: #e9e9e9;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .lesson-img {
-    max-width: 100%;
-    height: auto;
-    max-height: 200px;
-    object-fit: contain;
-    border-radius: 12px;
-    display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
 }
 
 .lesson-item h4 {
-    width: 100%;
-    font-size: 18px;
-    font-weight: bold;
-    text-align: center;
-    margin: 0;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  width: 100%;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .lesson-item p {
-    width: 100%;
-    font-size: 16px;
-    font-family: 'Itim', cursive;
-    text-align: center;
-    line-height: 1.5;
-    margin: 0;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  width: 100%;
+  font-size: 16px;
+  font-family: 'Itim', cursive;
+  text-align: center;
+  line-height: 1.5;
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-/* FIX: Text side containment */
 .text-side {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .text-side h3 {
-    font-size: 22px;
-    text-align: center;
-    margin: 0;
+  font-size: 22px;
+  text-align: center;
+  margin: 0;
 }
-
-
-
-
-
 
 /* ============================================================
    FLASHCARDS PAGE STYLES
    ============================================================ */
 
-/* Page container override */
 body.flashcards-page {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 body.flashcards-page .container {
-    background: #3B8BFF;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  background: #3B8BFF;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* Question counter */
 .flashcards-page .question-counter {
-    text-align: center;
-    padding: 4px 0 8px;
-    color: white;
-    font-size: 14px;
-    font-family: 'Inria Sans', sans-serif;
-    flex-shrink: 0;
+  text-align: center;
+  padding: 4px 0 8px;
+  color: white;
+  font-size: 14px;
+  font-family: 'Inria Sans', sans-serif;
+  flex-shrink: 0;
 }
 
-/* Card deck - fills space between counter and bottom nav */
 .flashcards-page .card-deck-wrapper {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    width: 100%;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
 }
 
 .flashcards-page .cards-track {
-    display: flex;
-    height: 100%;
-    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    will-change: transform;
+  display: flex;
+  height: 100%;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
 }
 
-/* Each slide */
 .flashcards-page .question-slide {
-    width: 100%;
-    height: 100%;
-    flex-shrink: 0;
-    padding: 0 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  flex-shrink: 0;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
 }
 
 .flashcards-page .question-slide::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
-/* ========== QUESTION CARD ========== */
 .flashcards-page .q-card {
-    background: #e9e9e9;
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    flex-shrink: 0;
+  background: #e9e9e9;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .flashcards-page .q-card-header {
-    display: flex;
-    gap: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 .flashcards-page .q-card-header input {
-    flex: 1;
-    border: none;
-    border-bottom: 1px solid #bbb;
-    background: transparent;
-    padding: 8px 4px;
-    font-size: 14px;
-    font-family: 'Inria Sans', sans-serif;
-    outline: none;
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #bbb;
+  background: transparent;
+  padding: 8px 4px;
+  font-size: 14px;
+  font-family: 'Inria Sans', sans-serif;
+  outline: none;
 }
 
 .flashcards-page .q-card-header input.subject-field {
-    font-weight: 600;
-    color: #333;
+  font-weight: 600;
+  color: #333;
 }
 
 .flashcards-page .q-card-header input.q-num-field {
-    color: #888;
-    text-align: right;
-    flex: 0 0 60px;
+  color: #888;
+  text-align: right;
+  flex: 0 0 60px;
 }
 
 .flashcards-page .q-card-header input::placeholder {
-    color: #aaa;
-    font-style: italic;
+  color: #aaa;
+  font-style: italic;
 }
 
 .flashcards-page .q-textarea {
-    width: 100%;
-    border: none;
-    background: transparent;
-    font-size: 20px;
-    font-family: 'Inria Sans', sans-serif;
-    color: #666;
-    resize: none;
-    outline: none;
-    min-height: 60px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  font-family: 'Inria Sans', sans-serif;
+  color: #666;
+  resize: none;
+  outline: none;
+  min-height: 60px;
 }
 
 .flashcards-page .q-textarea::placeholder {
-    color: #999;
+  color: #999;
 }
 
-/* ========== MORPHING CARD ========== */
 .flashcards-page .morph-card {
-    background: #e9e9e9;
-    border-radius: 12px;
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    flex-shrink: 0;
-    transition: all 0.3s ease;
-    overflow: hidden;
+  background: #e9e9e9;
+  border-radius: 12px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
-/* Morph states */
 .flashcards-page .morph-state {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .flashcards-page .morph-state.hidden {
-    display: none;
+  display: none;
 }
 
-/* Selector state */
 .flashcards-page .selector-state {
-    align-items: center;
+  align-items: center;
 }
 
 .flashcards-page .type-label {
-    font-size: 15px;
-    color: #333;
-    align-self: flex-start;
-    font-family: 'Inria Sans', sans-serif;
-    margin: 0;
+  font-size: 15px;
+  color: #333;
+  align-self: flex-start;
+  font-family: 'Inria Sans', sans-serif;
+  margin: 0;
 }
 
 .flashcards-page .file-upload-area {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    cursor: pointer;
-    padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 12px;
 }
 
 .flashcards-page .file-icon {
-    width: 48px;
-    height: 48px;
-    color: #888;
+  width: 48px;
+  height: 48px;
+  color: #888;
 }
 
 .flashcards-page .file-icon svg {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 .flashcards-page .file-label {
-    font-size: 13px;
-    color: #888;
-    font-family: 'Inria Sans', sans-serif;
+  font-size: 13px;
+  color: #888;
+  font-family: 'Inria Sans', sans-serif;
 }
 
 .flashcards-page .type-btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 10px;
-    font-size: 17px;
-    font-family: 'Inria Sans', sans-serif;
-    cursor: pointer;
-    transition: 0.2s;
-    background: #87CEEB;
-    color: #1a1a2e;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 17px;
+  font-family: 'Inria Sans', sans-serif;
+  cursor: pointer;
+  transition: 0.2s;
+  background: #87CEEB;
+  color: #1a1a2e;
 }
 
 .flashcards-page .type-btn:hover {
-    background: #6BB6FF;
+  background: #6BB6FF;
 }
 
-/* Choices state */
 .flashcards-page .choices-state {
-    gap: 10px;
+  gap: 10px;
 }
 
 .flashcards-page .morph-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
 .flashcards-page .morph-back {
-    color: #3B8BFF;
-    font-size: 14px;
-    cursor: pointer;
-    font-family: 'Inria Sans', sans-serif;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: 0.2s;
+  color: #3B8BFF;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Inria Sans', sans-serif;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: 0.2s;
 }
 
 .flashcards-page .morph-back:hover {
-    background: rgba(59, 139, 255, 0.1);
+  background: rgba(59, 139, 255, 0.1);
 }
 
 .flashcards-page .morph-title {
-    font-size: 15px;
-    color: #333;
-    font-weight: 600;
-    font-family: 'Inria Sans', sans-serif;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+  font-family: 'Inria Sans', sans-serif;
 }
 
 .flashcards-page .choice-field {
-    width: 100%;
-    padding: 14px 16px;
-    border: none;
-    border-radius: 10px;
-    background: #87CEEB;
-    font-size: 15px;
-    font-family: 'Inria Sans', sans-serif;
-    color: #1a1a2e;
-    outline: none;
-    cursor: pointer;
-    transition: 0.2s;
-    line-height: 1.4;
-    box-sizing: border-box;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #87CEEB;
+  font-size: 15px;
+  font-family: 'Inria Sans', sans-serif;
+  color: #1a1a2e;
+  outline: none;
+  cursor: pointer;
+  transition: 0.2s;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .flashcards-page .choice-field::placeholder {
-    color: #1a1a2e;
-    opacity: 0.9;
+  color: #1a1a2e;
+  opacity: 0.9;
 }
 
 .flashcards-page .choice-field:hover {
-    background: #6BB6FF;
+  background: #6BB6FF;
 }
 
 .flashcards-page .choice-field.correct {
-    background: #3B8BFF !important;
-    color: white;
+  background: #3B8BFF !important;
+  color: white;
 }
 
 .flashcards-page .choice-field.correct::placeholder {
-    color: white;
-    opacity: 0.9;
+  color: white;
+  opacity: 0.9;
 }
 
 .flashcards-page .choice-hint {
-    font-size: 12px;
-    color: #888;
-    text-align: center;
-    margin: 4px 0 0;
-    font-family: 'Inria Sans', sans-serif;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  margin: 4px 0 0;
+  font-family: 'Inria Sans', sans-serif;
 }
 
-/* Answer state */
 .flashcards-page .answer-state {
-    gap: 10px;
+  gap: 10px;
 }
 
 .flashcards-page .answer-label {
-    font-size: 15px;
-    color: #333;
-    font-family: 'Inria Sans', sans-serif;
-    margin: 0;
-    padding: 4px 0;
+  font-size: 15px;
+  color: #333;
+  font-family: 'Inria Sans', sans-serif;
+  margin: 0;
+  padding: 4px 0;
 }
 
 .flashcards-page .answer-field {
-    width: 100%;
-    padding: 14px 16px;
-    border: none;
-    border-radius: 10px;
-    background: #87CEEB;
-    font-size: 15px;
-    font-family: 'Inria Sans', sans-serif;
-    color: #1a1a2e;
-    outline: none;
-    line-height: 1.4;
-    box-sizing: border-box;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #87CEEB;
+  font-size: 15px;
+  font-family: 'Inria Sans', sans-serif;
+  color: #1a1a2e;
+  outline: none;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .flashcards-page .answer-field::placeholder {
-    color: #1a1a2e;
-    opacity: 0.9;
+  color: #1a1a2e;
+  opacity: 0.9;
 }
 
 .flashcards-page .answer-field:focus {
-    background: #6BB6FF;
+  background: #6BB6FF;
 }
 
-/* ========== PROGRESS DOTS ========== */
 .flashcards-page .progress-dots {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    padding: 8px 0;
-    flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+  flex-shrink: 0;
 }
 
 .flashcards-page .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
-    transition: 0.3s;
-    cursor: pointer;
-    border: 2px solid transparent;
-    flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: 0.3s;
+  cursor: pointer;
+  border: 2px solid transparent;
+  flex-shrink: 0;
 }
 
 .flashcards-page .dot.active {
-    background: #fff;
-    transform: scale(1.2);
-    border-color: #1a1a2e;
+  background: #fff;
+  transform: scale(1.2);
+  border-color: #1a1a2e;
 }
 
-/* ========== BOTTOM NAV (flashcards page) ========== */
 .flashcards-page .bottom-file-section {
-    position: relative;
-    width: 100%;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 12px 20px;
-    background: #3B8BFF;
-    z-index: 100;
-    flex-shrink: 0;
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 20px;
+  background: #3B8BFF;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
-/* ========== TOAST ========== */
 .flashcards-page .toast-msg {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-20px);
-    background: #333;
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 300;
-    opacity: 0;
-    transition: 0.3s;
-    pointer-events: none;
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: #333;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 300;
+  opacity: 0;
+  transition: 0.3s;
+  pointer-events: none;
 }
 
 .flashcards-page .toast-msg.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .flashcard-link {
@@ -1690,7 +1587,6 @@ body.flashcards-page .container {
   display: block;
   pointer-events: none;
 }
-
 
 /* ============================================================
    QUICK NOTE OVERLAY
@@ -1745,7 +1641,6 @@ body.flashcards-page .container {
   gap: 12px;
 }
 
-/* PAPERCLIP = SAVE BUTTON */
 .qn-save-btn {
   width: 36px;
   height: 36px;
@@ -1775,7 +1670,6 @@ body.flashcards-page .container {
   stroke: #2E7D32;
 }
 
-/* CHECKMARK/V = CLOSE/DISMISS BUTTON */
 .qn-close-btn {
   width: 36px;
   height: 36px;
@@ -1802,7 +1696,7 @@ body.flashcards-page .container {
 }
 
 .qn-title-input {
- background: transparent;
+  background: transparent;
   border: none;
   outline: none;
   font-size: 16px;
@@ -1815,6 +1709,7 @@ body.flashcards-page .container {
 .qn-title-input::placeholder {
   color: rgba(90, 58, 26, 0.6);
 }
+
 .qn-body {
   padding: 20px 16px;
 }
@@ -1882,7 +1777,6 @@ body.flashcards-page .container {
   border-radius: 16px;
 }
 
-
 .addsubject-scroll {
   position: absolute;
   top: 90px;
@@ -1897,7 +1791,7 @@ body.flashcards-page .container {
   display: none;
 }
 
- .folder {
+.folder {
   position: relative;
 }
 
@@ -1925,7 +1819,6 @@ body.flashcards-page .container {
   color: #FFAE71;
 }
 
-/* === CUSTOM FOLDER NAME MODAL === */
 .folder-modal-overlay {
   display: none;
   position: fixed;
@@ -1998,23 +1891,20 @@ body.flashcards-page .container {
 
 .back-folder {
   cursor: pointer;
-  min-width: 20px;   /* REDUCE from 90px */
+  min-width: 20px;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;        /* remove extra padding */
+  padding: 0;
 }
 
 .back-folder img {
-  width: 40px;       /* slightly smaller */
+  width: 40px;
   height: 40px;
   display: block;
   margin: 0 auto;
 }
-
-/* ========== NOTE CARD WITH TITLE + CONTENT ========== */
-
 
 .notesv2-card:active {
   transform: scale(0.98);
@@ -2025,7 +1915,6 @@ body.flashcards-page .container {
   background: #fff3e6;
 }
 
-/* Title section - gray bar like your screenshot */
 .note-card-title {
   background: #d0d0d0;
   padding: 12px 16px;
@@ -2037,35 +1926,29 @@ body.flashcards-page .container {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 0; /* ADD - prevent title from shrinking */
+  flex-shrink: 0;
 }
 
-/* Content section - white area */
 .note-card-content {
   background: #ffffff;
-  padding: 16px 16px 24px 16px; /* MORE bottom padding */
+  padding: 16px 16px 24px 16px;
   font-size: 16px;
-  line-height: 1.6; /* INCREASE from 1.5 for better readability */
+  line-height: 1.6;
   color: #333;
   min-height: 80px;
   font-family: 'Itim', cursive;
-  flex: 1; /* ADD - let content area grow */
-  overflow: visible; /* ADD - don't clip text */
+  flex: 1;
+  overflow: visible;
 }
 
-/* Handle empty content */
 .note-card-content:empty::before {
   content: "(No content)";
   color: #888;
   font-style: italic;
 }
 
-/* ============================================================
-   FORMATTING TOOLBAR (Add Subject Page)
-   ============================================================ */
-
 .formatting-toolbar {
- position: fixed;
+  position: fixed;
   bottom: 108px;
   left: 0;
   right: 0;
@@ -2074,32 +1957,30 @@ body.flashcards-page .container {
   max-width: 412px;
   background: #f0f0f0;
   display: flex;
-  justify-content: center;      /* center the groups */
+  justify-content: center;
   align-items: center;
-  gap: 2px;                     /* smaller gap between groups */
-  padding: 6px 4px;             /* less horizontal padding */
+  gap: 2px;
+  padding: 6px 4px;
   z-index: 100;
   border-top: 1px solid #ddd;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
-  overflow-x: visible;          /* no scroll */
+  overflow-x: visible;
   flex-wrap: nowrap;
   box-sizing: border-box;
 }
 
-/* Remove or update the animation to NOT use transform */
 .formatting-toolbar.toolbar-visible {
   animation: toolbarSlideUp 0.22s cubic-bezier(0.34,1.4,0.64,1) both;
 }
 
 @keyframes toolbarSlideUp {
-  from { opacity: 0; bottom: 80px; }  /* animate bottom position instead */
+  from { opacity: 0; bottom: 80px; }
   to   { opacity: 1; bottom: 108px; }
 }
 
-
 .toolbar-group {
   display: flex;
-  gap: 4px;                     /* tighter button spacing */
+  gap: 4px;
   align-items: center;
   flex-shrink: 0;
 }
@@ -2110,7 +1991,7 @@ body.flashcards-page .container {
   width: 1px;
   height: 16px;
   background: #bbb;
-  margin: 0 5px;                /* smaller margin */
+  margin: 0 5px;
   flex-shrink: 0;
 }
 
@@ -2118,17 +1999,17 @@ body.flashcards-page .container {
   background: transparent;
   border: none;
   color: #333;
-  padding: 4px 5px;             /* less padding */
+  padding: 4px 5px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;              /* slightly smaller */
+  font-size: 12px;
   font-family: 'Inria Sans', sans-serif;
   transition: background 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;              /* smaller min-width */
-  height: 24px;                 /* smaller height */
+  min-width: 22px;
+  height: 24px;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -2155,19 +2036,14 @@ body.flashcards-page .container {
 .toolbar-btn sup { font-size: 10px; vertical-align: super; }
 .toolbar-btn sub { font-size: 10px; vertical-align: sub; }
 
-/* Adjust addsubject-scroll to account for bottom bar only (toolbar is a popup) */
 .addsubject-scroll {
   bottom: 100px;
 }
 
-/* When toolbar is open, push scroll area up */
 .addsubject-scroll.toolbar-open {
   bottom: 155px;
 }
 
-/* Toolbar sits just above the bottom nav */
-
-/* Add Card / Add Image toolbar buttons */
 .toolbar-btn-addcard {
   background: #3B8BFF;
   border: none;
@@ -2182,7 +2058,6 @@ body.flashcards-page .container {
 }
 .toolbar-btn-addimg:hover { background: #e08f4e; }
 
-/* Bottom nav active item */
 .bottom-item-active svg {
   filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
 }
@@ -2191,7 +2066,6 @@ body.flashcards-page .container {
   color: white;
 }
 
-/* Bottom add section icon/label colors */
 .bottom-add-section .item p {
   color: white;
 }
@@ -2222,24 +2096,23 @@ body.flashcards-page .container {
 }
 .remove-subject-btn:hover { background: rgba(0,0,0,0.3); color: #fff; }
 
-
 .add-list-btn {
-    background: #000000;
-    color: #ffffff;
-    border: none;
-    border-radius: 10px;
-    padding: 14px 24px;
-    font-size: 15px;
-    font-family: 'Inria Sans', sans-serif;
-    font-style: italic;
-    cursor: pointer;
-    display: block;
-    text-align: left;
-    line-height: 1.3;
-    min-width: 150px;
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-family: 'Inria Sans', sans-serif;
+  font-style: italic;
+  cursor: pointer;
+  display: block;
+  text-align: left;
+  line-height: 1.3;
+  min-width: 150px;
 }
 
 .add-list-btn:disabled {
-    background: #333;
-    color: #aaa;
+  background: #333;
+  color: #aaa;
 }

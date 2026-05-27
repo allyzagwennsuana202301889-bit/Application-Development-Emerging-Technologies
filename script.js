@@ -687,3 +687,18 @@ function confirmRemoveSubject() {
   .then(res => res.text())
   .then(() => location.reload());
 }
+
+
+function updateBellDot() {
+    fetch('api_notification.php?action=unread_count')
+    .then(r => r.json())
+    .then(data => {
+        const dot = document.getElementById('bellDot');
+        if (dot) {
+            dot.classList.toggle('active', data.count > 0);
+        }
+    });
+}
+
+// Call on page load
+updateBellDot();

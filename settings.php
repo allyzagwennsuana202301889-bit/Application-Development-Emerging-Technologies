@@ -344,6 +344,41 @@
             margin-bottom: 15px;
             font-family: 'Itim', cursive;
         }
+
+        /* Password eye toggle */
+        .password-wrap {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .password-wrap .form-input {
+            margin-bottom: 0;
+            padding-right: 45px;
+        }
+        .eye-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            background: none;
+            border: none;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .eye-toggle:hover {
+            opacity: 0.8;
+        }
+        .eye-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: #888;
+        }
     </style>
 </head>
 <body>
@@ -440,7 +475,12 @@
       <div class="current-value">Current: <span id="currentEmail">Loading...</span></div>
       <div class="form-message" id="emailMessage"></div>
       <input type="email" class="form-input" id="newEmail" placeholder="Enter new email" maxlength="100">
-      <input type="password" class="form-input" id="emailPassword" placeholder="Enter your password to confirm">
+      <div class="password-wrap">
+        <input type="password" class="form-input" id="emailPassword" placeholder="Enter your password to confirm">
+        <button type="button" class="eye-toggle" onclick="toggleEye('emailPassword', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
       <button class="form-btn" onclick="saveEmail()">Update Email</button>
       <div class="form-close" onclick="closeFormModal(null, 'emailModal')">Cancel</div>
     </div>
@@ -451,9 +491,24 @@
     <div class="form-modal-card" onclick="event.stopPropagation()">
       <div class="form-modal-header">Change Password</div>
       <div class="form-message" id="passwordMessage"></div>
-      <input type="password" class="form-input" id="currentPassword" placeholder="Current password">
-      <input type="password" class="form-input" id="newPassword" placeholder="New password (min 6 chars)">
-      <input type="password" class="form-input" id="confirmPassword" placeholder="Confirm new password">
+      <div class="password-wrap">
+        <input type="password" class="form-input" id="currentPassword" placeholder="Current password">
+        <button type="button" class="eye-toggle" onclick="toggleEye('currentPassword', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
+      <div class="password-wrap">
+        <input type="password" class="form-input" id="newPassword" placeholder="New password (min 6 chars)">
+        <button type="button" class="eye-toggle" onclick="toggleEye('newPassword', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
+      <div class="password-wrap">
+        <input type="password" class="form-input" id="confirmPassword" placeholder="Confirm new password">
+        <button type="button" class="eye-toggle" onclick="toggleEye('confirmPassword', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
       <button class="form-btn" onclick="savePassword()">Update Password</button>
       <div class="form-close" onclick="closeFormModal(null, 'passwordModal')">Cancel</div>
     </div>
@@ -465,7 +520,12 @@
       <div class="form-modal-header" style="color: #f44336;">Delete Account</div>
       <div class="warning-text">⚠️ This action cannot be undone!</div>
       <div class="form-message" id="deleteMessage"></div>
-      <input type="password" class="form-input" id="deletePassword" placeholder="Enter your password to confirm">
+      <div class="password-wrap">
+        <input type="password" class="form-input" id="deletePassword" placeholder="Enter your password to confirm">
+        <button type="button" class="eye-toggle" onclick="toggleEye('deletePassword', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
       <button class="form-btn danger" onclick="confirmDelete()">Delete My Account</button>
       <div class="form-close" onclick="closeFormModal(null, 'deleteModal')">Cancel</div>
     </div>
@@ -777,6 +837,17 @@ function proceedDelete() {
     .catch(err => {
         showMessage('deleteMessage', 'Error: ' + err.message, false);
     });
+}
+
+function toggleEye(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+
+    // Update icon: eye (showing) vs eye-off (hidden)
+    btn.innerHTML = isHidden 
+        ? '<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.1 2.1C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>'
+        : '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
 }
 
 // Init

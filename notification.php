@@ -129,7 +129,7 @@ function getNotifImage($row) {
         .notif-text {
             flex: 1;
             min-width: 0;
-            padding-right: 30px; /* Space for the arrow button */
+            padding-right: 30px;
         }
         
         .notif-title {
@@ -170,6 +170,7 @@ function getNotifImage($row) {
             color: #888;
             transition: color 0.2s, transform 0.2s;
             z-index: 2;
+            pointer-events: auto;
         }
         
         .read-more-btn:hover {
@@ -179,10 +180,68 @@ function getNotifImage($row) {
         .read-more-btn.expanded {
             transform: translateY(-50%) rotate(180deg);
         }
-        
-        /* Prevent click from triggering the notif-item click */
-        .read-more-btn {
-            pointer-events: auto;
+
+        /* ========== MOBILE CONFIRM MODAL ========== */
+        .confirm-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .confirm-overlay.show {
+            display: flex;
+        }
+        .confirm-sheet {
+            background: #fff;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            padding: 28px 24px 40px;
+            font-family: 'Itim', cursive;
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to   { transform: translateY(0); }
+        }
+        .confirm-sheet h3 {
+            font-size: 18px;
+            color: #333;
+            margin: 0 0 8px;
+            text-align: center;
+        }
+        .confirm-sheet p {
+            font-size: 14px;
+            color: #888;
+            text-align: center;
+            margin: 0 0 24px;
+        }
+        .confirm-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .confirm-btn-delete {
+            background: #ff4d4d;
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 16px;
+            font-family: 'Itim', cursive;
+            cursor: pointer;
+        }
+        .confirm-btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-size: 16px;
+            font-family: 'Itim', cursive;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -227,7 +286,7 @@ function getNotifImage($row) {
                              ontouchend="endHold(this)"
                              onclick="handleClick(<?= $row['notification_id'] ?>, this)">
                             <div class="check-icon hidden">
-                                <img src="check.png">
+                                <img src="bluecheck.png">
                             </div>
                             <div class="notif-icon">
                                 <img src="<?= getNotifImage($row) ?>" alt="icon" onerror="this.src='file.png'">
@@ -260,7 +319,7 @@ function getNotifImage($row) {
                              ontouchend="endHold(this)"
                              onclick="handleClick(<?= $row['notification_id'] ?>, this)">
                             <div class="check-icon hidden">
-                                <img src="check.png">
+                                <img src="bluecheck.png">
                             </div>
                             <div class="notif-icon">
                                 <img src="<?= getNotifImage($row) ?>" alt="icon" onerror="this.src='file.png'">
@@ -303,8 +362,21 @@ function getNotifImage($row) {
             </div>
         </div>
 
+        <!-- MOBILE CONFIRM MODAL -->
+        <div class="confirm-overlay" id="confirmOverlay">
+            <div class="confirm-sheet">
+                <h3 id="confirmTitle">Delete?</h3>
+                <p id="confirmMessage">This action cannot be undone.</p>
+                <div class="confirm-btns">
+                    <button class="confirm-btn-delete" id="confirmYes">Delete</button>
+                    <button class="confirm-btn-cancel" onclick="closeConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
+    <script src="script.js"></script>
     <script>
     let currentTab = 'updates';
     let deleteMode = false;
@@ -313,6 +385,23 @@ function getNotifImage($row) {
     let isHolding = false;
     const HOLD_DURATION = 800;
 
+    /* ========== MOBILE CONFIRM MODAL ========== */
+    function showConfirm(title, message, onConfirm) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        document.getElementById('confirmYes').onclick = () => { closeConfirm(); onConfirm(); };
+        document.getElementById('confirmOverlay').classList.add('show');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmOverlay').classList.remove('show');
+    }
+
+    document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeConfirm();
+    });
+
+    /* ========== TABS ========== */
     function switchTab(tab) {
         if (deleteMode) cancelDeleteMode();
         currentTab = tab;
@@ -331,7 +420,6 @@ function getNotifImage($row) {
         
         const isExpanded = desc.classList.contains('expanded');
         
-        // Collapse all others first (optional - remove this loop if you want multiple expanded)
         document.querySelectorAll('.notif-desc.expanded').forEach(el => {
             el.classList.remove('expanded');
         });
@@ -345,6 +433,7 @@ function getNotifImage($row) {
         }
     }
 
+    /* ========== HOLD TO SELECT ========== */
     function startHold(notifId, element) {
         if (deleteMode) return;
         isHolding = false;
@@ -395,7 +484,6 @@ function getNotifImage($row) {
         if (!deleteMode) return;
 
         const icon = element.querySelector('.notif-icon img');
-        const checkImg = element.querySelector('.check-icon img');
 
         if (selectedItems.has(notifId)) {
             selectedItems.delete(notifId);
@@ -415,33 +503,36 @@ function getNotifImage($row) {
         }
     }
 
+    /* ========== DELETE SELECTED ========== */
     function deleteSelected() {
-        if (selectedItems.size === 0) {
-            cancelDeleteMode();
-            return;
-        }
-        if (!confirm('Delete ' + selectedItems.size + ' notification(s)?')) return;
-
-        const ids = Array.from(selectedItems).join(',');
-        cancelDeleteMode();
-
-        fetch('api_notification.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=delete_selected&ids=' + ids
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                ids.split(',').forEach(id => {
-                    const item = document.querySelector('[data-id="' + id + '"]');
-                    if (item) item.remove();
+        if (selectedItems.size === 0) { cancelDeleteMode(); return; }
+        const count = selectedItems.size;
+        showConfirm(
+            'Delete ' + count + ' notification' + (count > 1 ? 's' : '') + '?',
+            'This cannot be undone.',
+            () => {
+                const ids = Array.from(selectedItems).join(',');
+                cancelDeleteMode();
+                fetch('api_notification.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'action=delete_selected&ids=' + ids
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        ids.split(',').forEach(id => {
+                            const item = document.querySelector('[data-id="' + id + '"]');
+                            if (item) item.remove();
+                        });
+                        updateBadge();
+                    }
                 });
-                updateBadge();
             }
-        });
+        );
     }
 
+    /* ========== CLICK HANDLER ========== */
     function handleClick(notifId, element) {
         if (isHolding) {
             isHolding = false;
@@ -473,6 +564,7 @@ function getNotifImage($row) {
         }
     }
 
+    /* ========== MARK ALL READ ========== */
     function markAllRead() {
         fetch('api_notification.php', {
             method: 'POST',
@@ -491,6 +583,7 @@ function getNotifImage($row) {
         });
     }
 
+    /* ========== BADGE ========== */
     function updateBadge() {
         fetch('api_notification.php?action=unread_count')
         .then(r => r.json())
@@ -499,24 +592,30 @@ function getNotifImage($row) {
         });
     }
 
+    /* ========== DELETE ALL ========== */
     function deleteAll() {
-        if (!confirm('Delete all notifications?')) return;
-        fetch('api_notification.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=delete_all'
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                document.querySelectorAll('.notif-item').forEach(item => item.remove());
-                const section = document.getElementById(currentTab + 'Section');
-                if (section.querySelectorAll('.notif-item').length === 0) {
-                    section.innerHTML = '<div class="empty-state"><p>No ' + (currentTab === 'updates' ? 'updates' : 'missing items') + ' yet</p></div>';
-                }
-                updateBadge();
+        showConfirm(
+            'Delete all notifications?',
+            'This cannot be undone.',
+            () => {
+                fetch('api_notification.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'action=delete_all'
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        document.querySelectorAll('.notif-item').forEach(item => item.remove());
+                        const section = document.getElementById(currentTab + 'Section');
+                        if (section.querySelectorAll('.notif-item').length === 0) {
+                            section.innerHTML = '<div class="empty-state"><p>No ' + (currentTab === 'updates' ? 'updates' : 'missing items') + ' yet</p></div>';
+                        }
+                        updateBadge();
+                    }
+                });
             }
-        });
+        );
     }
 
     function goBack() { window.history.back(); }

@@ -168,7 +168,9 @@ function getImage($profile_image) {
   <nav class="nav">
     <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
     <span style="margin: 0 auto; color: white; font-family: 'Itim', cursive; font-size: 24px;">Leaderboard</span>
-    <img src="bell.png" class="bell" onclick="notif()">
+   <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bell">
+    <span class="notif-dot" id="bellDot"></span>
   </nav>
 
   <!-- SIDEBAR -->

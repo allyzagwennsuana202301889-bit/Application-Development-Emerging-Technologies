@@ -173,7 +173,9 @@ foreach ($presets as $row) {
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <input type="text" id="searchInput" placeholder="Search subject">
-    <img src="bell.png" onclick="notif()" class="bell" >
+   <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bell">
+    <span class="notif-dot" id="bellDot"></span>
   </nav>
 
   <!-- SIDEBAR -->

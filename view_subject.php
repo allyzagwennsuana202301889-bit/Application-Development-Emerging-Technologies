@@ -225,7 +225,10 @@ if (empty($cards)) {
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
     <input type="text" id="searchInput" placeholder="Search Topic">
-    <img src="bell.png" onclick="notif()" class="bell">
+   <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bell">
+    <span class="notif-dot" id="bellDot"></span>
+</div> 
   </nav>
 
   <div class="nav-links">

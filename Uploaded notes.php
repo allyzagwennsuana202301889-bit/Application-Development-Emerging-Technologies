@@ -31,7 +31,9 @@ $result = $stmt->get_result();
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-      <img src="bell.png" class="bell" onclick="notif()">
+     <div class="bell-wrapper" onclick="notif()">
+    <img src="bell.png" class="bell">
+    <span class="notif-dot" id="bellDot"></span>
   </nav>
 
   <div class="nav-links">

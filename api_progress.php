@@ -40,20 +40,55 @@ elseif ($action === 'save_quiz') {
         $correct     = (int)($_POST['correct']  ?? 0);
         $total       = (int)($_POST['total']    ?? 0);
         $percent     = (int)($_POST['percent']  ?? 0);
-        $answered_ids = $_POST['answered_ids'] ?? '';
-        $wrong_ids = $_POST['wrong_ids'] ?? '';
+        $answered_ids   = $_POST['answered_ids']   ?? '';
+        $wrong_ids      = $_POST['wrong_ids']      ?? '';
+        $questions_hash = $_POST['questions_hash'] ?? '';
 
         if (!$subject_id) {
             echo json_encode(['success' => false, 'error' => 'missing subject_id']);
             exit;
         }
 
+        // Build per-question snapshot for future edit detection
         $stmt = $conn->prepare("
-            INSERT INTO quiz_results
-                (student_id, subject_id, source_type, correct_answers, total_questions, score_percent, answered_question_ids, wrong_question_ids, date_taken)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            SELECT question_id, question, correct_answer 
+            FROM quiz_questions 
+            WHERE quiz_id = ? 
+            ORDER BY question_order, question_id
         ");
-        $stmt->bind_param("iisiiiss", $student_id, $subject_id, $source_type, $correct, $total, $percent, $answered_ids, $wrong_ids);
+        $stmt->bind_param("i", $subject_id);
+        $stmt->execute();
+        $qrows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+        $question_snapshot = [];
+        foreach ($qrows as $qr) {
+            $question_snapshot[] = [
+                'id' => $qr['question_id'],
+                'q' => $qr['question'],
+                'a' => $qr['correct_answer']
+            ];
+        }
+        $snapshot_json = json_encode($question_snapshot);
+
+        // Check if question_snapshot column exists
+        $colCheck = $conn->query("SHOW COLUMNS FROM quiz_results LIKE 'question_snapshot'");
+        $hasSnapshotCol = $colCheck->num_rows > 0;
+
+        if ($hasSnapshotCol) {
+            $stmt = $conn->prepare("
+                INSERT INTO quiz_results
+                    (student_id, subject_id, source_type, correct_answers, total_questions, score_percent, answered_question_ids, wrong_question_ids, questions_hash, question_snapshot, date_taken)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $stmt->bind_param("iisiiissss", $student_id, $subject_id, $source_type, $correct, $total, $percent, $answered_ids, $wrong_ids, $questions_hash, $snapshot_json);
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO quiz_results
+                    (student_id, subject_id, source_type, correct_answers, total_questions, score_percent, answered_question_ids, wrong_question_ids, questions_hash, date_taken)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $stmt->bind_param("iisiiisss", $student_id, $subject_id, $source_type, $correct, $total, $percent, $answered_ids, $wrong_ids, $questions_hash);
+        }
         $stmt->execute();
 
         $quiz_points = ($correct * 20) + 50;
@@ -91,8 +126,14 @@ elseif ($action === 'get_progress') {
     $stmt->execute();
     $current_quiz_total = (int)($stmt->get_result()->fetch_assoc()['q_count'] ?? 0);
 
+    // Check if question_snapshot column exists
+    $colCheck = $conn->query("SHOW COLUMNS FROM quiz_results LIKE 'question_snapshot'");
+    $hasSnapshotCol = $colCheck->num_rows > 0;
+
+    $snapshotSelect = $hasSnapshotCol ? ', question_snapshot' : '';
     $stmt = $conn->prepare("
-        SELECT total_questions, wrong_question_ids FROM quiz_results
+        SELECT total_questions, wrong_question_ids, questions_hash $snapshotSelect
+        FROM quiz_results
         WHERE student_id = ? AND subject_id = ? AND source_type = ?
         ORDER BY date_taken DESC, result_id DESC
         LIMIT 1
@@ -102,20 +143,98 @@ elseif ($action === 'get_progress') {
     $last_result = $stmt->get_result()->fetch_assoc();
     $last_total = (int)($last_result['total_questions'] ?? 0);
     $has_wrong = !empty($last_result['wrong_question_ids']);
+    $saved_hash = $last_result['questions_hash'] ?? '';
+    $saved_snapshot = $hasSnapshotCol ? ($last_result['question_snapshot'] ?? '') : '';
+
+    // Build current hash of all questions for this quiz
+    $stmt = $conn->prepare("SELECT question_id, question, correct_answer FROM quiz_questions WHERE quiz_id = ? ORDER BY question_order, question_id");
+    $stmt->bind_param("i", $subject_id);
+    $stmt->execute();
+    $qrows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $hash_input = '';
+    foreach ($qrows as $qr) {
+        $hash_input .= $qr['question_id'] . '|' . $qr['question'] . '|' . $qr['correct_answer'] . '||';
+    }
+    $current_hash = md5($hash_input);
+
+    // Detect specifically which questions had their answers edited
+    $edited_question_ids = [];
+    if ($last_total > 0 && $saved_hash !== '' && $saved_hash !== $current_hash && $saved_snapshot !== '') {
+        $old_snapshot = json_decode($saved_snapshot, true);
+        if (is_array($old_snapshot)) {
+            $old_map = [];
+            foreach ($old_snapshot as $item) {
+                $old_map[$item['id']] = ['q' => $item['q'], 'a' => $item['a']];
+            }
+            foreach ($qrows as $qr) {
+                $qid = $qr['question_id'];
+                if (isset($old_map[$qid])) {
+                    // Question existed before - check if answer or text changed
+                    if ($old_map[$qid]['a'] !== $qr['correct_answer'] || $old_map[$qid]['q'] !== $qr['question']) {
+                        $edited_question_ids[] = $qid;
+                    }
+                }
+            }
+        }
+    }
+
+    // Edited = there's a past attempt, and the hash doesn't match
+    $quiz_edited = $last_total > 0 && ($saved_hash === '' || $saved_hash !== $current_hash);
+
+    // Detect new questions
+    $new_question_ids = [];
+    if ($saved_snapshot !== '') {
+        $old_snapshot = json_decode($saved_snapshot, true);
+        $old_ids = [];
+        if (is_array($old_snapshot)) {
+            foreach ($old_snapshot as $item) {
+                $old_ids[] = $item['id'];
+            }
+        }
+        foreach ($qrows as $qr) {
+            if (!in_array($qr['question_id'], $old_ids)) {
+                $new_question_ids[] = $qr['question_id'];
+            }
+        }
+    } else if ($last_total > 0 && $current_quiz_total > $last_total) {
+        // Fallback: no snapshot but count increased
+        $stmt = $conn->prepare("
+            SELECT answered_question_ids FROM quiz_results
+            WHERE student_id = ? AND subject_id = ? AND source_type = ?
+            ORDER BY date_taken DESC LIMIT 1
+        ");
+        $stmt->bind_param("iis", $student_id, $subject_id, $source_type);
+        $stmt->execute();
+        $ans_row = $stmt->get_result()->fetch_assoc();
+        $answered_ids = [];
+        if (!empty($ans_row['answered_question_ids'])) {
+            $answered_ids = array_map('intval', explode(',', $ans_row['answered_question_ids']));
+        }
+        foreach ($qrows as $qr) {
+            if (!in_array($qr['question_id'], $answered_ids)) {
+                $new_question_ids[] = $qr['question_id'];
+            }
+        }
+    }
 
     if ($current_quiz_total > $last_total && $last_total > 0) {
         $quiz_updated = true;
     }
 
     echo json_encode([
-        'success'         => true,
-        'percent'         => $row['overall_percent']  ?? 0,
-        'reading_percent' => $row['reading_percent']  ?? 0,
-        'quiz_percent'    => $row['quiz_percent']     ?? 0,
-        'quiz_updated'    => $quiz_updated,
+        'success'            => true,
+        'percent'            => $row['overall_percent']  ?? 0,
+        'reading_percent'    => $row['reading_percent']  ?? 0,
+        'quiz_percent'       => $row['quiz_percent']     ?? 0,
+        'quiz_updated'       => $quiz_updated,
+        'quiz_edited'        => $quiz_edited,
+        'edited_question_ids'=> $edited_question_ids,
+        'new_question_ids'   => $new_question_ids,
+        'wrong_question_ids' => $last_result['wrong_question_ids'] ?? '',
         'current_quiz_total' => $current_quiz_total,
         'last_quiz_total'    => $last_total,
         'has_wrong_answers'  => $has_wrong,
+        'current_hash'       => $current_hash,
     ]);
 }
 

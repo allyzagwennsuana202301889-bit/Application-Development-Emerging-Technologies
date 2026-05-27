@@ -18,26 +18,48 @@ if (isset($notif_result['notifications_enabled']) && (int)$notif_result['notific
     $clear = $conn->prepare("DELETE FROM notification WHERE student_id = ? AND section = 'missing'");
     $clear->bind_param("i", $student_id);
     $clear->execute();
-    return; // Don't generate any missing notifications
+    return;
 }
 
 /* ============================================================
    MISSING NOTIFICATIONS GENERATOR
-   Runs checks and inserts 'missing' section notifications
+   Only creates notifs that haven't been permanently dismissed
    ============================================================ */
 
-// Clear old missing notifications first (we regenerate them fresh)
-$clear = $conn->prepare("DELETE FROM notification WHERE student_id = ? AND section = 'missing'");
-$clear->bind_param("i", $student_id);
-$clear->execute();
-
 $now = date('Y-m-d H:i:s');
-$oneWeekAgo = date('Y-m-d H:i:s', strtotime('-7 days'));
-$threeDaysAgo = date('Y-m-d H:i:s', strtotime('-3 days'));
+
+// Helper: check if user permanently dismissed this missing notif type for this subject
+function isDismissed($conn, $student_id, $subject_id, $type) {
+    $check = $conn->prepare("
+        SELECT 1 FROM dismissed_missing 
+        WHERE student_id = ? AND subject_id = ? AND type = ? 
+        LIMIT 1
+    ");
+    $check->bind_param("iis", $student_id, $subject_id, $type);
+    $check->execute();
+    return $check->get_result()->num_rows > 0;
+}
+
+// Helper: check if a missing notif already exists (not deleted)
+function missingNotifExists($conn, $student_id, $subject_id, $type) {
+    $check = $conn->prepare("
+        SELECT 1 FROM notification 
+        WHERE student_id = ? AND subject_id = ? AND section = 'missing' AND type = ?
+        LIMIT 1
+    ");
+    $check->bind_param("iis", $student_id, $subject_id, $type);
+    $check->execute();
+    return $check->get_result()->num_rows > 0;
+}
+
+$insert = $conn->prepare("
+    INSERT INTO notification 
+    (student_id, subject_id, section, type, title, message, status, date_sent, action_url)
+    VALUES (?, ?, 'missing', ?, ?, ?, 'unread', ?, ?)
+");
 
 /* -----------------------------------------------------------
-   CHECK 1: Subjects with NO reading progress (FIXED)
-   Only notifies if subject exists, has a name, and has content
+   CHECK 1: Subjects with NO reading progress
    ----------------------------------------------------------- */
 $stmt = $conn->prepare("
     SELECT ss.student_id, ss.subject_id, ss.source_type,
@@ -50,7 +72,6 @@ $stmt = $conn->prepare("
     AND ss.subject_id NOT IN (
         SELECT subject_id FROM reading_progress WHERE student_id = ?
     )
-    /* FIX: Only include subjects that actually exist and have content */
     AND (
         (ss.source_type = 'subjects' AND s.subject_id IS NOT NULL AND s.subject_name IS NOT NULL AND s.subject_name != '' AND s.content IS NOT NULL AND s.content != '' AND s.content != '[]')
         OR
@@ -61,19 +82,18 @@ $stmt->bind_param("ii", $student_id, $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$insert = $conn->prepare("
-    INSERT INTO notification 
-    (student_id, subject_id, section, type, title, message, status, date_sent, action_url)
-    VALUES (?, ?, 'missing', 'no_progress', ?, ?, 'unread', ?, ?)
-");
-
+$type_no_progress = 'no_progress';
 while ($row = $result->fetch_assoc()) {
+    if (isDismissed($conn, $student_id, $row['subject_id'], $type_no_progress)) continue;
+    if (missingNotifExists($conn, $student_id, $row['subject_id'], $type_no_progress)) continue;
+
     $title = "Start Learning!";
     $message = "You haven't started '" . ($row["subject_name"] ?? "Untitled") . "' yet. Tap to begin.";
     $actionUrl = 'subject.php?id=' . $row['subject_id'] . '&type=' . $row['source_type'];
-    $insert->bind_param("iissss", 
+    $insert->bind_param("iisssss", 
         $student_id, 
         $row['subject_id'],
+        $type_no_progress,
         $title,
         $message,
         $now,
@@ -84,7 +104,6 @@ while ($row = $result->fetch_assoc()) {
 
 /* -----------------------------------------------------------
    CHECK 2: Subjects with reading progress but few entries
-   (simplified - just checks if progress count is low)
    ----------------------------------------------------------- */
 $stmt = $conn->prepare("
     SELECT ss.student_id, ss.subject_id, ss.source_type,
@@ -103,13 +122,18 @@ $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$type_few_reads = 'few_reads';
 while ($row = $result->fetch_assoc()) {
+    if (isDismissed($conn, $student_id, $row['subject_id'], $type_few_reads)) continue;
+    if (missingNotifExists($conn, $student_id, $row['subject_id'], $type_few_reads)) continue;
+
     $title = "Keep Going!";
     $message = "You've only read '" . ($row["subject_name"] ?? "Untitled") . "' " . $row['read_count'] . " time(s). Keep it up!";
     $actionUrl = 'subject.php?id=' . $row['subject_id'] . '&type=' . $row['source_type'];
-    $insert->bind_param("iissss", 
+    $insert->bind_param("iisssss", 
         $student_id, 
         $row['subject_id'],
+        $type_few_reads,
         $title,
         $message,
         $now,
@@ -137,13 +161,18 @@ $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$type_no_quiz = 'no_quiz';
 while ($row = $result->fetch_assoc()) {
+    if (isDismissed($conn, $student_id, $row['subject_id'], $type_no_quiz)) continue;
+    if (missingNotifExists($conn, $student_id, $row['subject_id'], $type_no_quiz)) continue;
+
     $title = "Quiz Ready!";
     $message = "'" . ($row["subject_name"] ?? "Untitled") . "' has flashcards waiting. Test yourself?";
     $actionUrl = 'quiz.php?id=' . $row['subject_id'] . '&type=' . $row['source_type'];
-    $insert->bind_param("iissss", 
+    $insert->bind_param("iisssss", 
         $student_id, 
         $row['subject_id'],
+        $type_no_quiz,
         $title,
         $message,
         $now,
@@ -172,13 +201,18 @@ $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$type_low_score = 'low_score';
 while ($row = $result->fetch_assoc()) {
+    if (isDismissed($conn, $student_id, $row['subject_id'], $type_low_score)) continue;
+    if (missingNotifExists($conn, $student_id, $row['subject_id'], $type_low_score)) continue;
+
     $title = "Keep Practicing!";
     $message = "You scored " . $row["score_percent"] . "% on '" . ($row["subject_name"] ?? "Untitled") . "'. Try again to improve!";
     $actionUrl = 'quiz.php?id=' . $row['subject_id'] . '&type=' . $row['source_type'];
-    $insert->bind_param("iissss", 
+    $insert->bind_param("iisssss", 
         $student_id, 
         $row['subject_id'],
+        $type_low_score,
         $title,
         $message,
         $now,
@@ -189,7 +223,6 @@ while ($row = $result->fetch_assoc()) {
 
 /* -----------------------------------------------------------
    CHECK 5: Subject has content but no flashcards made
-   (only for notes-type subjects)
    ----------------------------------------------------------- */
 $stmt = $conn->prepare("
     SELECT ss.student_id, ss.subject_id, ss.source_type,
@@ -207,13 +240,18 @@ $stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$type_no_flashcards = 'no_flashcards';
 while ($row = $result->fetch_assoc()) {
+    if (isDismissed($conn, $student_id, $row['subject_id'], $type_no_flashcards)) continue;
+    if (missingNotifExists($conn, $student_id, $row['subject_id'], $type_no_flashcards)) continue;
+
     $title = "Make Flashcards!";
     $message = "'" . ($row["subject_name"] ?? "Untitled") . "' has notes but no flashcards. Create some to study smarter.";
     $actionUrl = 'readflashcards.php?note_id=' . $row['subject_id'];
-    $insert->bind_param("iissss", 
+    $insert->bind_param("iisssss", 
         $student_id, 
         $row['subject_id'],
+        $type_no_flashcards,
         $title,
         $message,
         $now,

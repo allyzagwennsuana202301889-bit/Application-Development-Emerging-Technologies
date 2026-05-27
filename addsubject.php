@@ -203,6 +203,64 @@ if (isset($_GET['note_id'])) {
     }
 
 
+    /* Nav layout fix */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      margin-top: 20px;
+    }
+    .hamburger {
+      font-size: 40px;
+      cursor: pointer;
+      flex-shrink: 0;
+      z-index: 2;
+      margin-left: 10px;
+    }
+    .back-btn {
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .back-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .bell-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      z-index: 2;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .bell {
+      width: 50px;
+      height: 60px;
+      object-fit: contain;
+    }
+    .notif-dot {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 10px;
+      height: 10px;
+      background: #FF4444;
+      border-radius: 50%;
+      display: none;
+    }
+    .notif-dot.active {
+      display: block;
+    }
   </style>
 </head>
 
@@ -217,10 +275,13 @@ if (isset($_GET['note_id'])) {
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-    <img src="bell.png" onclick="notif()" class="bells">
+    <div class="bell-wrapper" onclick="notif()">
+      <img src="bell.png" class="bells">
+      <span class="notif-dot" id="bellDot"></span>
+    </div>
     <button class="back-btn" id="backBtn">
       <img src="back.png">
-    </button> 
+    </button>
   </nav>
 
   <div class="nav-links">
@@ -900,7 +961,7 @@ function goToFlashcards() {
   const title = document.getElementById("subjectName").value.trim();
 
   if (!title) {
-    alert("Please enter a subject name first!");
+    showToast("Please enter a subject name first!");
     return;
   }
 
