@@ -221,20 +221,64 @@ elseif ($action === 'get_progress') {
         $quiz_updated = true;
     }
 
+    // ═══════════════════════════════════════════════
+    // LIVE RECALCULATION of effective quiz stats
+    // (handles edits/additions without requiring a new save)
+    // ═══════════════════════════════════════════════
+    $has_quiz = $current_quiz_total > 0;
+    $effective_correct = 0;
+    $effective_total   = $current_quiz_total;
+    $quiz_percent_live = (int)($row['quiz_percent'] ?? 0);
+
+    if ($has_quiz && $last_result && $last_total > 0) {
+        $existing_ids = array_column($qrows, 'question_id');
+        $existing_ids_set = array_flip($existing_ids);
+
+        $prev_answered_ids = [];
+        if (!empty($last_result['answered_question_ids'])) {
+            $prev_answered_ids = array_filter(
+                array_map('intval', explode(',', $last_result['answered_question_ids'])),
+                fn($id) => $id > 0 && isset($existing_ids_set[$id])
+            );
+        }
+        $prev_wrong_ids = [];
+        if (!empty($last_result['wrong_question_ids'])) {
+            $prev_wrong_ids = array_filter(
+                array_map('intval', explode(',', $last_result['wrong_question_ids'])),
+                fn($id) => $id > 0 && isset($existing_ids_set[$id])
+            );
+        }
+
+        $prev_correct_ids = array_values(array_diff($prev_answered_ids, $prev_wrong_ids));
+        $edited_and_prev_correct = array_values(array_intersect($edited_question_ids, $prev_correct_ids));
+        $unverified_ids = array_values(array_unique(array_merge($new_question_ids, $edited_and_prev_correct)));
+
+        if (!empty($unverified_ids)) {
+            $effective_correct_ids = array_values(array_diff($prev_correct_ids, $unverified_ids));
+            $effective_correct = count($effective_correct_ids);
+            $quiz_percent_live = $current_quiz_total > 0 ? round(($effective_correct / $current_quiz_total) * 100) : 0;
+        } else {
+            $effective_correct = count($prev_correct_ids);
+            $quiz_percent_live = (int)($last_result['score_percent'] ?? 0);
+        }
+    }
+
     echo json_encode([
-        'success'            => true,
-        'percent'            => $row['overall_percent']  ?? 0,
-        'reading_percent'    => $row['reading_percent']  ?? 0,
-        'quiz_percent'       => $row['quiz_percent']     ?? 0,
-        'quiz_updated'       => $quiz_updated,
-        'quiz_edited'        => $quiz_edited,
-        'edited_question_ids'=> $edited_question_ids,
-        'new_question_ids'   => $new_question_ids,
-        'wrong_question_ids' => $last_result['wrong_question_ids'] ?? '',
-        'current_quiz_total' => $current_quiz_total,
-        'last_quiz_total'    => $last_total,
-        'has_wrong_answers'  => $has_wrong,
-        'current_hash'       => $current_hash,
+        'success'              => true,
+        'percent'              => $row['overall_percent']  ?? 0,
+        'reading_percent'      => $row['reading_percent']  ?? 0,
+        'quiz_percent'         => $quiz_percent_live,
+        'quiz_updated'         => $quiz_updated,
+        'quiz_edited'          => $quiz_edited,
+        'edited_question_ids'  => $edited_question_ids,
+        'new_question_ids'     => $new_question_ids,
+        'wrong_question_ids'   => $last_result['wrong_question_ids'] ?? '',
+        'current_quiz_total'   => $current_quiz_total,
+        'last_quiz_total'      => $last_total,
+        'has_wrong_answers'    => $has_wrong,
+        'current_hash'         => $current_hash,
+        'effective_correct'    => $effective_correct,
+        'effective_total'      => $effective_total,
     ]);
 }
 
@@ -293,6 +337,7 @@ function addPoints($conn, $student_id, $points) {
 }
 
 function recalculateProgress($conn, $student_id, $subject_id, $source_type) {
+    // --- READING PROGRESS ---
     $stmt = $conn->prepare("
         SELECT COUNT(*) as read_count FROM reading_progress
         WHERE student_id = ? AND subject_id = ? AND source_type = ? AND completed = 1
@@ -319,6 +364,7 @@ function recalculateProgress($conn, $student_id, $subject_id, $source_type) {
 
     $reading_percent = $total_lessons > 0 ? round(($read_count / $total_lessons) * 100) : 0;
 
+    // --- QUIZ PROGRESS ---
     $stmt = $conn->prepare("SELECT COUNT(*) as q_count FROM quiz_questions WHERE quiz_id = ?");
     $stmt->bind_param("i", $subject_id);
     $stmt->execute();
@@ -330,7 +376,7 @@ function recalculateProgress($conn, $student_id, $subject_id, $source_type) {
         $quiz_percent = 0;
     } else {
         $stmt = $conn->prepare("
-            SELECT score_percent, total_questions, correct_answers, answered_question_ids, wrong_question_ids
+            SELECT score_percent, total_questions, correct_answers, answered_question_ids, wrong_question_ids, questions_hash, question_snapshot
             FROM quiz_results
             WHERE student_id = ? AND subject_id = ? AND source_type = ?
             ORDER BY date_taken DESC, result_id DESC
@@ -341,11 +387,104 @@ function recalculateProgress($conn, $student_id, $subject_id, $source_type) {
         $last_result = $stmt->get_result()->fetch_assoc();
 
         $last_total = (int)($last_result['total_questions'] ?? 0);
-        $last_correct = (int)($last_result['correct_answers'] ?? 0);
         $last_percent = (int)($last_result['score_percent'] ?? 0);
+        $saved_hash = $last_result['questions_hash'] ?? '';
 
-        if ($current_quiz_total > $last_total && $last_total > 0) {
-            $quiz_percent = round(($last_correct / $current_quiz_total) * 100);
+        // Build current hash of all questions (also used for edit detection below)
+        $stmt = $conn->prepare("SELECT question_id, question, correct_answer FROM quiz_questions WHERE quiz_id = ? ORDER BY question_order, question_id");
+        $stmt->bind_param("i", $subject_id);
+        $stmt->execute();
+        $qrows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $hash_input = '';
+        foreach ($qrows as $qr) {
+            $hash_input .= $qr['question_id'] . '|' . $qr['question'] . '|' . $qr['correct_answer'] . '||';
+        }
+        $current_hash = md5($hash_input);
+
+        // Parse answered/wrong IDs from last result — filter to questions that still exist
+        $existing_ids = array_column($qrows, 'question_id');
+        $existing_ids_set = array_flip($existing_ids);
+
+        $prev_answered_ids = [];
+        if (!empty($last_result['answered_question_ids'])) {
+            $prev_answered_ids = array_filter(
+                array_map('intval', explode(',', $last_result['answered_question_ids'])),
+                fn($id) => $id > 0 && isset($existing_ids_set[$id])
+            );
+        }
+        $prev_wrong_ids = [];
+        if (!empty($last_result['wrong_question_ids'])) {
+            $prev_wrong_ids = array_filter(
+                array_map('intval', explode(',', $last_result['wrong_question_ids'])),
+                fn($id) => $id > 0 && isset($existing_ids_set[$id])
+            );
+        }
+
+        // Detect quiz state changes
+        $new_questions_added = ($current_quiz_total > $last_total && $last_total > 0);
+        $quiz_edited = ($last_total > 0 && $saved_hash !== '' && $saved_hash !== $current_hash);
+
+        // Identify edited question IDs using snapshot comparison
+        $edited_question_ids_recalc = [];
+        if ($quiz_edited) {
+            $colCheck = $conn->query("SHOW COLUMNS FROM quiz_results LIKE 'question_snapshot'");
+            $hasSnapshotCol = $colCheck->num_rows > 0;
+
+            if ($hasSnapshotCol) {
+                $stmt = $conn->prepare("SELECT question_snapshot FROM quiz_results WHERE student_id = ? AND subject_id = ? AND source_type = ? ORDER BY date_taken DESC LIMIT 1");
+                $stmt->bind_param("iis", $student_id, $subject_id, $source_type);
+                $stmt->execute();
+                $snap = $stmt->get_result()->fetch_assoc();
+                $saved_snapshot = $snap['question_snapshot'] ?? '';
+
+                if ($saved_snapshot !== '') {
+                    $old_snapshot = json_decode($saved_snapshot, true);
+                    if (is_array($old_snapshot)) {
+                        $old_map = [];
+                        foreach ($old_snapshot as $item) {
+                            $old_map[$item['id']] = ['q' => $item['q'], 'a' => $item['a']];
+                        }
+                        foreach ($qrows as $qr) {
+                            $qid = $qr['question_id'];
+                            if (isset($old_map[$qid])) {
+                                if ($old_map[$qid]['a'] !== $qr['correct_answer'] || $old_map[$qid]['q'] !== $qr['question']) {
+                                    $edited_question_ids_recalc[] = $qid;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: no snapshot — treat all previously-correct answered IDs as potentially edited
+            if (empty($edited_question_ids_recalc)) {
+                $prev_correct_ids = array_values(array_diff($prev_answered_ids, $prev_wrong_ids));
+                $edited_question_ids_recalc = $prev_correct_ids;
+            }
+        }
+
+        // Identify new question IDs (not in prev_answered_ids)
+        $new_question_ids_recalc = [];
+        if ($new_questions_added) {
+            foreach ($existing_ids as $qid) {
+                if (!in_array($qid, $prev_answered_ids)) {
+                    $new_question_ids_recalc[] = $qid;
+                }
+            }
+        }
+
+        // IDs that must be re-answered: edited ones that were previously answered correctly,
+        // plus new questions never answered before
+        $prev_correct_ids = array_values(array_diff($prev_answered_ids, $prev_wrong_ids));
+        $edited_and_prev_correct = array_values(array_intersect($edited_question_ids_recalc, $prev_correct_ids));
+        $unverified_ids = array_values(array_unique(array_merge($new_question_ids_recalc, $edited_and_prev_correct)));
+
+        // Recalculate percentage: treat unverified IDs as not-yet-correct
+        if (!empty($unverified_ids) && $last_total > 0) {
+            // Remove unverified from the "correctly answered" pool
+            $effective_correct_ids = array_values(array_diff($prev_correct_ids, $unverified_ids));
+            $effective_correct = count($effective_correct_ids);
+            $quiz_percent = round(($effective_correct / $current_quiz_total) * 100);
         } else {
             $quiz_percent = $last_percent;
         }
@@ -353,6 +492,7 @@ function recalculateProgress($conn, $student_id, $subject_id, $source_type) {
         $overall = round(($reading_percent * 0.4) + ($quiz_percent * 0.6));
     }
 
+    // Save to subject_progress
     $stmt = $conn->prepare("
         INSERT INTO subject_progress
             (student_id, subject_id, source_type, reading_percent, quiz_percent, overall_percent)

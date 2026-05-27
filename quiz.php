@@ -124,11 +124,39 @@ if ($last_attempt) {
     // Detect edited: hash changed and there was a previous attempt
     $quizEdited = ($last_total > 0 && ($saved_hash === '' || $saved_hash !== $questionsHash));
 
-    // Without snapshot column, we can't know WHICH questions changed.
-    // Fallback: mark previously-answered-correctly questions as potentially edited
+    // Use snapshot to detect SPECIFIC edited questions
     if ($quizEdited) {
-        $previouslyCorrectIds = array_values(array_diff($answeredIds, $wrongIds));
-        $editedQuestionIds = $previouslyCorrectIds;
+        $snapCheck = $conn->query("SHOW COLUMNS FROM quiz_results LIKE 'question_snapshot'");
+        if ($snapCheck->num_rows > 0) {
+            $snapStmt = $conn->prepare("SELECT question_snapshot FROM quiz_results WHERE student_id = ? AND subject_id = ? AND source_type = ? ORDER BY date_taken DESC LIMIT 1");
+            $snapStmt->bind_param("iis", $student_id, $id, $type);
+            $snapStmt->execute();
+            $snapRow = $snapStmt->get_result()->fetch_assoc();
+            $saved_snapshot = $snapRow['question_snapshot'] ?? '';
+            
+            if ($saved_snapshot !== '') {
+                $old_snapshot = json_decode($saved_snapshot, true);
+                if (is_array($old_snapshot)) {
+                    $old_map = [];
+                    foreach ($old_snapshot as $item) {
+                        $old_map[$item['id']] = ['q' => $item['q'], 'a' => $item['a']];
+                    }
+                    foreach ($allQuestions as $q) {
+                        $qid = $q['question_id'];
+                        if (isset($old_map[$qid])) {
+                            if ($old_map[$qid]['a'] !== $q['correct_answer'] || $old_map[$qid]['q'] !== $q['question_text']) {
+                                $editedQuestionIds[] = $qid;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback: if snapshot didn't identify specific edits, mark all previously-correct as potentially edited
+        if (empty($editedQuestionIds)) {
+            $previouslyCorrectIds = array_values(array_diff($answeredIds, $wrongIds));
+            $editedQuestionIds = $previouslyCorrectIds;
+        }
     }
 
     // Detect new questions: not in answeredIds and total increased
@@ -258,7 +286,7 @@ $total = count($questions);
       line-height: 1.4;
     }
     .quiz-option-btn:hover { background: #5DB8FF; }
-    .quiz-option-btn.correct { background: #4CAF50 !important; color: white !important; }
+    .quiz-option-btn.correct { background: #FFAE71 !important; color: white !important; }
     .quiz-option-btn.wrong { background: #f44336 !important; color: white !important; }
     .quiz-option-btn.disabled { opacity: 0.7; pointer-events: none; }
     .quiz-text-input {
@@ -272,7 +300,7 @@ $total = count($questions);
       background: #f5f5f5;
     }
     .quiz-text-input:focus { border-color: #3B8BFF; }
-    .quiz-text-input.correct { border-color: #4CAF50; background: #e8f5e9; }
+    .quiz-text-input.correct { border-color: #FFAE71; background: #e8f5e9; }
     .quiz-text-input.wrong { border-color: #f44336; background: #ffebee; }
     .quiz-dots {
       display: flex;
@@ -563,7 +591,6 @@ const prevEditedIds  = <?= json_encode($editedQuestionIds) ?>;
 const prevRetakeMode = '<?= $retakeMode ?>';
 const totalAll       = allQuestions.length;
 
-// LIVE state — updated after each save via fetch
 let liveWrongIds     = [...prevWrongIds];
 let liveNewIds       = [...prevNewIds];
 let liveEditedIds    = [...prevEditedIds];
@@ -577,16 +604,10 @@ let correctAnswers   = 0;
 let userAnswers      = [];
 let answered         = false;
 
-/* ════════════════════════════════════════════
-   BUILD RETAKE SET from LIVE state
-   Priority: WRONG > (NEW + EDITED combined)
-════════════════════════════════════════════ */
 function buildRetakeQuestions() {
-    // Priority 1: Wrong answers
     if (liveWrongIds.length > 0) {
         return allQuestions.filter(q => liveWrongIds.includes(q.question_id));
     }
-    // Priority 2: Combine new + edited questions together
     const combined = [...new Set([...liveNewIds, ...liveEditedIds])];
     if (combined.length > 0) {
         return allQuestions.filter(q => combined.includes(q.question_id));
@@ -610,9 +631,6 @@ function clearProgress() {
     localStorage.removeItem(QUIZ_KEY);
 }
 
-/* ════════════════════════════════════════════
-   FETCH FRESH RETAKE STATE FROM SERVER
-════════════════════════════════════════════ */
 async function refreshRetakeState() {
     try {
         const res = await fetch('api_progress.php?action=get_progress&subject_id=<?= $id ?>&type=<?= $type ?>');
@@ -621,7 +639,6 @@ async function refreshRetakeState() {
 
         quizEdited = data.quiz_edited ?? false;
 
-        // Update live state from server
         if (data.wrong_question_ids !== undefined) {
             const w = data.wrong_question_ids ? data.wrong_question_ids.split(',').map(Number).filter(id => id > 0) : [];
             liveWrongIds = w;
@@ -633,7 +650,6 @@ async function refreshRetakeState() {
             liveEditedIds = data.edited_question_ids || [];
         }
 
-        // Recalculate retake mode
         if (liveWrongIds.length > 0) liveRetakeMode = 'wrong';
         else {
             const hasNew = liveNewIds.length > 0;
@@ -650,13 +666,10 @@ async function refreshRetakeState() {
     }
 }
 
-/* ════════════════════════════════════════════
-   UPDATE RETRY BUTTON based on LIVE state
-════════════════════════════════════════════ */
 function updateRetryButtonUI() {
     const btn = document.getElementById('retryBtn');
     const text = document.getElementById('retryText');
-        if (!btn || !text) return;
+    if (!btn || !text) return;
 
     const hasWrong = liveWrongIds.length > 0;
     const hasNew = liveNewIds.length > 0;
@@ -670,19 +683,14 @@ function updateRetryButtonUI() {
 
         if (hasWrong) {
             text.textContent = `Retry (${liveWrongIds.length})`;
-            
         } else if (hasNew && hasEdited) {
             text.textContent = `Retry (${combinedCount})`;
-            
         } else if (hasNew) {
             text.textContent = `Retry (${liveNewIds.length} new)`;
-            
         } else if (hasEdited) {
             text.textContent = `Retry (${liveEditedIds.length} updated)`;
-            
         } else {
             text.textContent = 'Retry';
-            
         }
     } else {
         btn.classList.add('retry-disabled');
@@ -693,29 +701,23 @@ function updateRetryButtonUI() {
             return false;
         };
         text.textContent = 'Retry';
-        
     }
 }
 
-/* ════════════════════════════════════════════
-   CUMULATIVE STATS — handles deletions correctly
-════════════════════════════════════════════ */
 function calculateCumulativeStats() {
     const existingQuestionIds = new Set(allQuestions.map(q => q.question_id));
     let wrongIds = [];
     let answeredIds = [];
 
-    // Current attempt data — filter out answers for deleted questions
     userAnswers.forEach((ans, idx) => {
         const q = questions[idx];
-        if (!q) return; // skip if question no longer exists (deleted)
+        if (!q) return;
         const qid = q.question_id;
-        if (!existingQuestionIds.has(qid)) return; // double-check
+        if (!existingQuestionIds.has(qid)) return;
         answeredIds.push(qid);
         if (!ans.correct) wrongIds.push(qid);
     });
 
-    // First attempt ever
     if (!lastAttempt) {
         return {
             correct: correctAnswers,
@@ -731,7 +733,6 @@ function calculateCumulativeStats() {
     const prevAnsweredIds = lastAttempt.answered_question_ids ? 
         lastAttempt.answered_question_ids.split(',').map(Number).filter(id => id > 0 && existingQuestionIds.has(id)) : [];
 
-    // Map retake question IDs to their indices in the current retake set
     const retakeIdToIndex = {};
     questions.forEach((q, i) => retakeIdToIndex[q.question_id] = i);
 
@@ -741,32 +742,29 @@ function calculateCumulativeStats() {
     lastWrongIds.forEach(pid => {
         const idxInRetake = retakeIdToIndex[pid];
         if (idxInRetake !== undefined) {
-            // Was in this retake
             if (userAnswers[idxInRetake]?.correct) {
                 fixedFromBefore.push(pid);
             } else {
                 stillWrongFromBefore.push(pid);
             }
         } else {
-            // Not in this retake — remains wrong from before
             stillWrongFromBefore.push(pid);
         }
     });
 
-    // All wrong now = previously still wrong + newly wrong in this attempt
     const allWrongNow = [...new Set([...stillWrongFromBefore, ...wrongIds])];
-
-    // All answered ever = previously answered + currently answered
     const allAnsweredEver = [...new Set([...prevAnsweredIds, ...answeredIds])];
-
-    // Already filtered to existing above, but double-check
     const validAnsweredEver = allAnsweredEver.filter(id => existingQuestionIds.has(id));
     const validWrongNow = allWrongNow.filter(id => existingQuestionIds.has(id));
 
-    const cumulativeCorrect = Math.min(
-        Math.max(validAnsweredEver.length - validWrongNow.length, 0),
-        totalAll
-    );
+    const currentCorrectIds = answeredIds.filter(id => !wrongIds.includes(id));
+    const prevCorrectIds = prevAnsweredIds.filter(id => !lastWrongIds.includes(id));
+    const relevantEditedIds = liveEditedIds.filter(id => prevCorrectIds.includes(id));
+    const unverifiedIds = [...new Set([...liveNewIds, ...relevantEditedIds])]
+        .filter(id => existingQuestionIds.has(id) && !currentCorrectIds.includes(id));
+    const potentiallyCorrectIds = validAnsweredEver.filter(id => !validWrongNow.includes(id));
+    const verifiedCorrectIds = potentiallyCorrectIds.filter(id => !unverifiedIds.includes(id));
+    const cumulativeCorrect = Math.min(verifiedCorrectIds.length, totalAll);
 
     return {
         correct: cumulativeCorrect,
@@ -777,10 +775,7 @@ function calculateCumulativeStats() {
     };
 }
 
-/* ════════════════════════════════════════════
-   RECALCULATE STATS FROM LAST ATTEMPT
-   (used when userAnswers is empty but lastAttempt exists)
-════════════════════════════════════════════ */
+// FIXED: Now accounts for edited/new questions
 function recalculateFromLastAttempt() {
     const existingQuestionIds = new Set(allQuestions.map(q => q.question_id));
 
@@ -789,7 +784,15 @@ function recalculateFromLastAttempt() {
     const answeredIds = lastAttempt.answered_question_ids ? 
         lastAttempt.answered_question_ids.split(',').map(Number).filter(id => id > 0 && existingQuestionIds.has(id)) : [];
 
-    const correct = Math.max(answeredIds.length - wrongIds.length, 0);
+    const prevCorrectIds = answeredIds.filter(id => !wrongIds.includes(id));
+    
+    // SUBTRACT edited and new questions from correct count
+    const unverifiedIds = [...new Set([...liveNewIds, ...liveEditedIds])]
+        .filter(id => existingQuestionIds.has(id));
+    
+    const verifiedCorrectIds = prevCorrectIds.filter(id => !unverifiedIds.includes(id));
+    
+    const correct = verifiedCorrectIds.length;
     const percent = totalAll > 0 ? Math.round((correct / totalAll) * 100) : 0;
 
     return {
@@ -816,22 +819,21 @@ function saveQuizToServer() {
     })
     .then(data => {
         if (data.success) {
-            console.log('✅ Saved:', stats.percent + '%');
-            // CRITICAL: Refresh live state from server so next retry is accurate
+            console.log('Saved:', stats.percent + '%');
             refreshRetakeState();
         } else {
-            console.error('❌ Save failed:', data);
+            console.error('Save failed:', data);
             alert('Save failed: ' + (data.error || 'Unknown error'));
         }
     })
     .catch(err => {
-        console.error('❌ Error:', err);
+        console.error('Error:', err);
         alert('Network error: ' + err.message);
     });
 }
 
 function loadOverallProgress() {
-    fetch('api_progress.php?action=get_progress&subject_id=<?= $id ?>&type=<?= $type ?>')
+    return fetch('api_progress.php?action=get_progress&subject_id=<?= $id ?>&type=<?= $type ?>')
     .then(r => r.json())
     .then(data => {
         const pct = data.percent ?? 0;
@@ -842,7 +844,6 @@ function loadOverallProgress() {
 
         quizEdited = data.quiz_edited ?? false;
 
-        // Update live state from initial load too
         if (data.wrong_question_ids !== undefined) {
             const w = data.wrong_question_ids ? data.wrong_question_ids.split(',').map(Number).filter(id => id > 0) : [];
             liveWrongIds = w;
@@ -855,15 +856,18 @@ function loadOverallProgress() {
         }
 
         updateRetryButtonUI();
+        
+        // Refresh analysis if already visible
+        const analysisScreen = document.getElementById('analysisScreen');
+        if (analysisScreen && analysisScreen.style.display === 'block') {
+            showAnalysis(true);
+        }
     })
     .catch(() => {});
 }
 
-/* ════════════════════════════════════════════
-   QUIZ FLOW
-════════════════════════════════════════════ */
-function initQuiz() {
-    loadOverallProgress();
+async function initQuiz() {
+    await loadOverallProgress();
     if (totalQuestions === 0) return;
 
     const saved = loadProgress();
@@ -1039,10 +1043,10 @@ function showAnalysis(fromSaved = false) {
 
     let displayPercent, displayCorrect, displayTotal, displayWrongAnswers;
 
-    // When no current userAnswers but there's a lastAttempt, recalculate from lastAttempt
-    // filtering out deleted questions — DON'T blindly use stored correct_answers
     if (userAnswers.length === 0 && lastAttempt) {
+        // FIXED: Use recalculateFromLastAttempt which now accounts for edits
         const stats = recalculateFromLastAttempt();
+        
         displayPercent  = stats.percent;
         displayCorrect  = stats.correct;
         displayTotal    = stats.total;
@@ -1066,7 +1070,7 @@ function showAnalysis(fromSaved = false) {
             .map((ans, i) => {
                 if (ans.correct) return null;
                 const q = questions[i];
-                if (!q) return null; // deleted question
+                if (!q) return null;
                 return {
                     question: ans.question,
                     correctAnswer: q.correct_answer ?? ans.correctAnswer,
@@ -1105,17 +1109,12 @@ function showAnalysis(fromSaved = false) {
     }
 }
 
-/* ════════════════════════════════════════════
-   RESTART — uses LIVE state, not stale PHP vars
-════════════════════════════════════════════ */
 function restartQuiz() {
     clearProgress();
 
-    // Use buildRetakeQuestions which reads LIVE state
     questions = buildRetakeQuestions();
     totalQuestions = questions.length;
 
-    // If somehow empty (shouldn't happen if button is enabled), show alert
     if (totalQuestions === 0) {
         alert('No questions to retake. Great job!');
         return;

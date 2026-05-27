@@ -742,7 +742,7 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         }
 
         .flashcards-read-page .edit-mode .choice-btn.correct {
-            background: #d4edda;
+            background: #FFAE71;
             border: 2px dashed #FFAE71;
             color: #155724;
         }

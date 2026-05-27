@@ -109,8 +109,13 @@ function recalcSubjectProgress($conn, $student_id, $subject_id, $source_type) {
         $overall = $reading_percent;
         $quiz_percent = 0;
     } else {
+        // Check if question_snapshot column exists
+        $colCheck = $conn->query("SHOW COLUMNS FROM quiz_results LIKE 'question_snapshot'");
+        $hasSnapshotCol = $colCheck->num_rows > 0;
+        $snapshotSelect = $hasSnapshotCol ? ', question_snapshot' : '';
+
         $stmt = $conn->prepare("
-            SELECT score_percent, total_questions, correct_answers
+            SELECT score_percent, total_questions, correct_answers, answered_question_ids, wrong_question_ids, questions_hash $snapshotSelect
             FROM quiz_results
             WHERE student_id = ? AND subject_id = ? AND source_type = ?
             ORDER BY date_taken DESC, result_id DESC
@@ -122,8 +127,94 @@ function recalcSubjectProgress($conn, $student_id, $subject_id, $source_type) {
         $last_total = (int)($last_result['total_questions'] ?? 0);
         $last_correct = (int)($last_result['correct_answers'] ?? 0);
         $last_percent = (int)($last_result['score_percent'] ?? 0);
+        $saved_hash = $last_result['questions_hash'] ?? '';
+        $saved_snapshot = $hasSnapshotCol ? ($last_result['question_snapshot'] ?? '') : '';
+        $prev_answered_ids = [];
+        if (!empty($last_result['answered_question_ids'])) {
+            $prev_answered_ids = array_map('intval', explode(',', $last_result['answered_question_ids']));
+        }
+        $prev_wrong_ids = [];
+        if (!empty($last_result['wrong_question_ids'])) {
+            $prev_wrong_ids = array_map('intval', explode(',', $last_result['wrong_question_ids']));
+        }
 
-        if ($current_quiz_total > $last_total && $last_total > 0) {
+        // Build current hash of all questions for this quiz
+        $stmt = $conn->prepare("SELECT question_id, question, correct_answer FROM quiz_questions WHERE quiz_id = ? ORDER BY question_order, question_id");
+        $stmt->bind_param("i", $subject_id);
+        $stmt->execute();
+        $qrows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $hash_input = '';
+        foreach ($qrows as $qr) {
+            $hash_input .= $qr['question_id'] . '|' . $qr['question'] . '|' . $qr['correct_answer'] . '||';
+        }
+        $current_hash = md5($hash_input);
+        $existing_ids = array_column($qrows, 'question_id');
+        $existing_ids_set = array_flip($existing_ids);
+
+        // Filter answered/wrong IDs to only questions that still exist
+        $prev_answered_ids = array_values(array_filter($prev_answered_ids, fn($id) => $id > 0 && isset($existing_ids_set[$id])));
+        $prev_wrong_ids = array_values(array_filter($prev_wrong_ids, fn($id) => $id > 0 && isset($existing_ids_set[$id])));
+        $prev_correct_ids = array_values(array_diff($prev_answered_ids, $prev_wrong_ids));
+
+        // Detect edited questions using snapshot comparison
+        $edited_question_ids = [];
+        if ($last_total > 0 && $saved_hash !== '' && $saved_hash !== $current_hash && $saved_snapshot !== '') {
+            $old_snapshot = json_decode($saved_snapshot, true);
+            if (is_array($old_snapshot)) {
+                $old_map = [];
+                foreach ($old_snapshot as $item) {
+                    $old_map[$item['id']] = ['q' => $item['q'], 'a' => $item['a']];
+                }
+                foreach ($qrows as $qr) {
+                    $qid = $qr['question_id'];
+                    if (isset($old_map[$qid])) {
+                        if ($old_map[$qid]['a'] !== $qr['correct_answer'] || $old_map[$qid]['q'] !== $qr['question']) {
+                            $edited_question_ids[] = $qid;
+                        }
+                    }
+                }
+            }
+        }
+        // Fallback: no snapshot or no specific edits detected — treat all previously-correct as potentially edited
+        if ($last_total > 0 && ($saved_hash === '' || $saved_hash !== $current_hash) && empty($edited_question_ids)) {
+            $edited_question_ids = $prev_correct_ids;
+        }
+
+        // Detect new questions (not in previous answered IDs)
+        $new_question_ids = [];
+        if ($saved_snapshot !== '') {
+            $old_snapshot = json_decode($saved_snapshot, true);
+            $old_ids = [];
+            if (is_array($old_snapshot)) {
+                foreach ($old_snapshot as $item) {
+                    $old_ids[] = $item['id'];
+                }
+            }
+            foreach ($qrows as $qr) {
+                if (!in_array($qr['question_id'], $old_ids)) {
+                    $new_question_ids[] = $qr['question_id'];
+                }
+            }
+        } else if ($current_quiz_total > $last_total && $last_total > 0) {
+            // Fallback: count increased but no snapshot
+            foreach ($qrows as $qr) {
+                if (!in_array($qr['question_id'], $prev_answered_ids)) {
+                    $new_question_ids[] = $qr['question_id'];
+                }
+            }
+        }
+
+        // Edited questions that were previously correct must be re-answered
+        $edited_and_prev_correct = array_values(array_intersect($edited_question_ids, $prev_correct_ids));
+        $unverified_ids = array_values(array_unique(array_merge($new_question_ids, $edited_and_prev_correct)));
+
+        // Recalculate percentage: treat unverified IDs as not-yet-correct
+        if (!empty($unverified_ids) && $last_total > 0) {
+            $effective_correct_ids = array_values(array_diff($prev_correct_ids, $unverified_ids));
+            $effective_correct = count($effective_correct_ids);
+            $quiz_percent = $current_quiz_total > 0 ? round(($effective_correct / $current_quiz_total) * 100) : 0;
+        } else if ($current_quiz_total > $last_total && $last_total > 0) {
+            // New questions added but none are unverified (all previously answered)
             $quiz_percent = round(($last_correct / $current_quiz_total) * 100);
         } else {
             $quiz_percent = $last_percent;
