@@ -26,6 +26,7 @@ if (isset($_GET['note_id'])) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Add Subject</title>
   <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -114,7 +115,7 @@ if (isset($_GET['note_id'])) {
     .remove-card-img-btn {
       position: absolute;
       top: -6px;
-      right: -6px;
+      left: -6px;
       width: 22px;
       height: 22px;
       background: #ff4444;
@@ -133,15 +134,16 @@ if (isset($_GET['note_id'])) {
       box-shadow: 0 1px 4px rgba(0,0,0,0.3);
       opacity: 40%;
     }
-    .remove-subject-img-btn:hover,
-    .remove-card-img-btn:hover {
-      background: #cc0000;
-    }
     .remove-subject-img-btn {
       top: -8px;
+      left: auto;
       right: -8px;
       width: 24px;
       height: 24px;
+    }
+    .remove-subject-img-btn:hover,
+    .remove-card-img-btn:hover {
+      background: #cc0000;
     }
 
     /* FIX: Ensure all child elements of fake-desc inherit the Itim font */
@@ -200,16 +202,6 @@ if (isset($_GET['note_id'])) {
       color: white;
     }
 
-    /* Move remove image buttons to the LEFT */
-    .remove-subject-img-btn,
-    .remove-card-img-btn {
-      right: auto;
-      left: -6px;
-    }
-    .remove-subject-img-btn {
-      right: auto;
-      left: -8px;
-    }
 
   </style>
 </head>
@@ -272,7 +264,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 

@@ -1918,12 +1918,82 @@ body.flashcards-page .container {
 }
 
 .folder.selected img {
-  outline: 3px solid #F4A261;
-  border-radius: 8px;
+  filter: brightness(0) saturate(100%) invert(75%) sepia(60%) saturate(500%) hue-rotate(340deg) brightness(1.05);
 }
 
 .folder.selected p {
-  color: #F4A261;
+  color: #FFAE71;
+}
+
+/* === CUSTOM FOLDER NAME MODAL === */
+.folder-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+
+.folder-modal-overlay.active {
+  display: flex;
+}
+
+.folder-modal-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 20px 16px;
+  width: 80%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.folder-modal-box h3 {
+  font-size: 18px;
+  color: #222;
+  text-align: center;
+  font-style: italic;
+}
+
+.folder-modal-box input {
+  border: 1.5px solid #ccc;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 16px;
+  outline: none;
+  font-family: 'Inria Sans', sans-serif;
+}
+
+.folder-modal-box input:focus {
+  border-color: #3B8BFF;
+}
+
+.folder-modal-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.folder-modal-btns button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: 'Inria Sans', sans-serif;
+  cursor: pointer;
+  border: none;
+}
+
+.folder-modal-confirm {
+  background: #3B8BFF;
+  color: white;
+}
+
+.folder-modal-cancel {
+  background: #eee;
+  color: #333;
 }
 
 .back-folder {

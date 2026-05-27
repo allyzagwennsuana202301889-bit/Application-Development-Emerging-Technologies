@@ -120,6 +120,71 @@ function getNotifImage($row) {
     <title>Notifications</title>
     <link href="https://fonts.googleapis.com/css2?family=Itim&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style2.css">
+    <style>
+        /* ========== READ MORE BUTTON STYLES ========== */
+        .notif-item {
+            position: relative;
+        }
+        
+        .notif-text {
+            flex: 1;
+            min-width: 0;
+            padding-right: 30px; /* Space for the arrow button */
+        }
+        
+        .notif-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .notif-desc {
+            font-size: 14px;
+            color: #555;
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.3s ease;
+        }
+        
+        .notif-desc.expanded {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+        
+        .read-more-btn {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 26px;
+            color: #888;
+            transition: color 0.2s, transform 0.2s;
+            z-index: 2;
+        }
+        
+        .read-more-btn:hover {
+            color: #3B8BFF;
+        }
+        
+        .read-more-btn.expanded {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        
+        /* Prevent click from triggering the notif-item click */
+        .read-more-btn {
+            pointer-events: auto;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -169,8 +234,9 @@ function getNotifImage($row) {
                             </div>
                             <div class="notif-text">
                                 <p class="notif-title"><?= htmlspecialchars($row['title']) ?></p>
-                                <p class="notif-desc"><?= htmlspecialchars($row['message']) ?></p>
+                                <p class="notif-desc" id="desc-<?= $row['notification_id'] ?>"><?= htmlspecialchars($row['message']) ?></p>
                             </div>
+                            <button class="read-more-btn" onclick="event.stopPropagation(); toggleReadMore(<?= $row['notification_id'] ?>, this)">⌄</button>
                         </div>
                     <?php endwhile; ?>
                 <?php else: ?>
@@ -201,8 +267,9 @@ function getNotifImage($row) {
                             </div>
                             <div class="notif-text">
                                 <p class="notif-title"><?= htmlspecialchars($row['title']) ?></p>
-                                <p class="notif-desc"><?= htmlspecialchars($row['message']) ?></p>
+                                <p class="notif-desc" id="desc-<?= $row['notification_id'] ?>"><?= htmlspecialchars($row['message']) ?></p>
                             </div>
+                            <button class="read-more-btn" onclick="event.stopPropagation(); toggleReadMore(<?= $row['notification_id'] ?>, this)">⌄</button>
                         </div>
                     <?php endwhile; ?>
                 <?php else: ?>
@@ -257,6 +324,27 @@ function getNotifImage($row) {
         document.getElementById('missingSection').classList.toggle('hidden', tab !== 'missing');
     }
 
+    /* ========== READ MORE TOGGLE ========== */
+    function toggleReadMore(notifId, btn) {
+        const desc = document.getElementById('desc-' + notifId);
+        if (!desc) return;
+        
+        const isExpanded = desc.classList.contains('expanded');
+        
+        // Collapse all others first (optional - remove this loop if you want multiple expanded)
+        document.querySelectorAll('.notif-desc.expanded').forEach(el => {
+            el.classList.remove('expanded');
+        });
+        document.querySelectorAll('.read-more-btn.expanded').forEach(el => {
+            el.classList.remove('expanded');
+        });
+        
+        if (!isExpanded) {
+            desc.classList.add('expanded');
+            btn.classList.add('expanded');
+        }
+    }
+
     function startHold(notifId, element) {
         if (deleteMode) return;
         isHolding = false;
@@ -277,14 +365,14 @@ function getNotifImage($row) {
         document.getElementById('bottomActions').classList.add('hidden');
         document.getElementById('deleteModeBar').classList.remove('hidden');
         document.querySelectorAll('.notif-item').forEach(item => {
-    item.classList.remove('delete-mode-active', 'selected');
-    const icon = item.querySelector('.notif-icon img');
-    if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
-    const check = item.querySelector('.check-icon');
-    if (check) check.classList.add('hidden');
-    const notifIcon = item.querySelector('.notif-icon');
-    if (notifIcon) notifIcon.classList.remove('hidden');
-});
+            item.classList.remove('delete-mode-active', 'selected');
+            const icon = item.querySelector('.notif-icon img');
+            if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
+            const check = item.querySelector('.check-icon');
+            if (check) check.classList.add('hidden');
+            const notifIcon = item.querySelector('.notif-icon');
+            if (notifIcon) notifIcon.classList.remove('hidden');
+        });
     }
 
     function cancelDeleteMode() {
@@ -293,41 +381,39 @@ function getNotifImage($row) {
         document.getElementById('bottomActions').classList.remove('hidden');
         document.getElementById('deleteModeBar').classList.add('hidden');
         document.querySelectorAll('.notif-item').forEach(item => {
-    item.classList.remove('delete-mode-active', 'selected');
-    const icon = item.querySelector('.notif-icon img');
-    if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
-    const check = item.querySelector('.check-icon');
-    if (check) check.classList.add('hidden');
-    const notifIcon = item.querySelector('.notif-icon');
-    if (notifIcon) notifIcon.classList.remove('hidden');
-});
+            item.classList.remove('delete-mode-active', 'selected');
+            const icon = item.querySelector('.notif-icon img');
+            if (icon && item.dataset.originalImg) icon.src = item.dataset.originalImg;
+            const check = item.querySelector('.check-icon');
+            if (check) check.classList.add('hidden');
+            const notifIcon = item.querySelector('.notif-icon');
+            if (notifIcon) notifIcon.classList.remove('hidden');
+        });
     }
 
-function toggleSelect(notifId, element) {
-    if (!deleteMode) return;
+    function toggleSelect(notifId, element) {
+        if (!deleteMode) return;
 
-    const icon = element.querySelector('.notif-icon img');
-    const checkImg = element.querySelector('.check-icon img');
+        const icon = element.querySelector('.notif-icon img');
+        const checkImg = element.querySelector('.check-icon img');
 
-    if (selectedItems.has(notifId)) {
-        // Uncheck - restore original icon
-        selectedItems.delete(notifId);
-        element.classList.remove('selected');
-        if (icon) icon.src = element.dataset.originalImg;
-    } else {
-        // Check - save original icon, show check
-        selectedItems.add(notifId);
-        element.classList.add('selected');
-        if (icon && !element.dataset.originalImg) {
-            element.dataset.originalImg = icon.src;
+        if (selectedItems.has(notifId)) {
+            selectedItems.delete(notifId);
+            element.classList.remove('selected');
+            if (icon) icon.src = element.dataset.originalImg;
+        } else {
+            selectedItems.add(notifId);
+            element.classList.add('selected');
+            if (icon && !element.dataset.originalImg) {
+                element.dataset.originalImg = icon.src;
+            }
+            if (icon) icon.src = 'bluecheck.png';
         }
-        if (icon) icon.src = 'bluecheck.png';
-    }
 
-    if (selectedItems.size === 0) {
-        cancelDeleteMode();
+        if (selectedItems.size === 0) {
+            cancelDeleteMode();
+        }
     }
-}
 
     function deleteSelected() {
         if (selectedItems.size === 0) {
@@ -336,7 +422,6 @@ function toggleSelect(notifId, element) {
         }
         if (!confirm('Delete ' + selectedItems.size + ' notification(s)?')) return;
 
-        // Save IDs before cancelDeleteMode clears selectedItems
         const ids = Array.from(selectedItems).join(',');
         cancelDeleteMode();
 

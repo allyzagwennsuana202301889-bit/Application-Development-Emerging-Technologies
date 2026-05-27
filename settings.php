@@ -32,7 +32,7 @@
         
         /* Blue Header */
         .settings-header {
-            height: 80px;
+            height: 120px;
             background: #3B8BFF;
             display: flex;
             align-items: center;
@@ -42,15 +42,14 @@
         }
         
         .settings-header .icon-left {
-            width: 36px;
-            height: 36px;
+            width: 50px;
+            height: 50px;
             object-fit: contain;
-            filter: brightness(0) invert(1);
         }
         
         .settings-header .title {
-            color: #fff;
-            font-size: 24px;
+            color: black;
+            font-size: 28px;
             font-family: 'Itim', cursive;
         }
         
@@ -65,10 +64,9 @@
         }
         
         .settings-header .back-btn img {
-            width: 28px;
-            height: 28px;
+            width: 50px;
+            height: 50px;
             object-fit: contain;
-            filter: brightness(0) invert(1);
         }
         
         /* Options List */
@@ -98,8 +96,8 @@
         }
         
         .option-icon {
-            width: 45px;
-            height: 45px;
+            width: 95px;
+            height: 95px;
             object-fit: contain;
             flex-shrink: 0;
             transition: filter 0.3s;
@@ -379,7 +377,7 @@
       <p class="option-text">Feedback</p>
     </div>
 
-    <div class="option-row" onclick="window.location.href='faq.php'">
+    <div class="option-row" onclick="window.location.href='faq.html'">
       <img src="FAQIcon.png" class="option-icon" alt="FAQ">
       <p class="option-text">FAQ</p>
     </div>
@@ -399,21 +397,21 @@
       <div class="modal-divider"></div>
       
       <div class="modal-option" onclick="openChangeEmail()">
-        <img src="email.png" class="modal-option-icon" alt="Email">
+        <img src="markmssg.png" class="modal-option-icon" alt="Email">
         <span class="modal-option-text">Change Email</span>
       </div>
       
       <div class="modal-divider"></div>
       
       <div class="modal-option" onclick="openChangePassword()">
-        <img src="lock.png" class="modal-option-icon" alt="Password">
+        <img src="password.png" class="modal-option-icon" alt="Password">
         <span class="modal-option-text">Change Password</span>
       </div>
       
       <div class="modal-divider"></div>
       
       <div class="modal-option delete" onclick="openDeleteAccount()">
-        <img src="delete.png" class="modal-option-icon" alt="Delete">
+        <img src="del.png" class="modal-option-icon" alt="Delete">
         <span class="modal-option-text">Delete account</span>
       </div>
       
@@ -472,7 +470,15 @@
       <div class="form-close" onclick="closeFormModal(null, 'deleteModal')">Cancel</div>
     </div>
   </div>
+</div>
 
+<div id="deleteConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div class="form-modal-card" onclick="event.stopPropagation()">
+    <div class="form-modal-header" style="color:#f44336;">Are you sure?</div>
+    <p style="text-align:center; color:#666; font-size:14px; margin-bottom:20px;">This will permanently delete your account and all data.</p>
+    <button class="form-btn danger" onclick="proceedDelete()">Yes, Delete</button>
+    <div class="form-close" onclick="document.getElementById('deleteConfirmModal').style.display='none'">Cancel</div>
+  </div>
 </div>
 
 <script>
@@ -480,7 +486,9 @@ let notificationsEnabled = true;
 
 // ========== NAVIGATION ==========
 function goBack() {
-    window.history.back();
+    const from = sessionStorage.getItem('settingsFrom') || 'homepage.php';
+    sessionStorage.removeItem('settingsFrom');
+    window.location.href = from;
 }
 
 // ========== NOTIFICATION TOGGLE ==========
@@ -740,16 +748,18 @@ function savePassword() {
 
 function confirmDelete() {
     const password = document.getElementById('deletePassword').value;
-    
     if (!password) {
         showMessage('deleteMessage', 'Please enter your password', false);
         return;
     }
-    
-    if (!confirm('Are you absolutely sure? This will permanently delete your account and all data!')) {
-        return;
-    }
-    
+    document.getElementById('deleteConfirmModal').style.display = 'flex';
+}
+
+function proceedDelete() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+
+    const password = document.getElementById('deletePassword').value;
+
     fetch('api_settings.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -759,9 +769,7 @@ function confirmDelete() {
     .then(data => {
         if (data.success) {
             showMessage('deleteMessage', 'Account deleted. Redirecting...', true);
-            setTimeout(() => {
-                window.location.href = 'logout.php';
-            }, 2000);
+            setTimeout(() => { window.location.href = 'logout.php'; }, 2000);
         } else {
             showMessage('deleteMessage', data.error || 'Failed to delete account', false);
         }

@@ -27,6 +27,7 @@ $folders_result = $conn->query($sql_folders);
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <link rel="stylesheet" href="style.css">
 </head>
@@ -61,7 +62,7 @@ $folders_result = $conn->query($sql_folders);
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -71,13 +72,13 @@ $folders_result = $conn->query($sql_folders);
   <div class="folders">
 
     <?php if ($folder_id) { ?>
-  <div class="folder back-folder" onclick="goBack()">
+  <div class="folder back-folder" onclick="exitfolder()">
     <img src="back.png">
   </div>
   <?php } ?>
 
     <div class="folder add-folder" onclick="createFolder()">
-      <img src="add.png">
+      <img src="addfile.png">
       <p>Add</p>
     </div>
 
@@ -148,6 +149,18 @@ $plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'U
 
 </div>
 
+<!-- FOLDER NAME MODAL -->
+<div class="folder-modal-overlay" id="folderNameModal">
+  <div class="folder-modal-box">
+    <h3 id="folderModalTitle">Folder name</h3>
+    <input type="text" id="folderNameInput" placeholder="Enter name...">
+    <div class="folder-modal-btns">
+      <button class="folder-modal-cancel" onclick="closeFolderModal()">Cancel</button>
+      <button class="folder-modal-confirm" onclick="confirmFolderModal()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- MOVE MODAL -->
 <div class="modales" id="moveModal">
   <div class="modal-contentss">
@@ -168,6 +181,10 @@ $plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'U
 </div>
 
 <script>
+
+  function exitfolder() {
+  window.location.href = "notes.php";
+}
 
 /* ================= STATE ================= */
 let selectedFolders = new Set();
@@ -198,11 +215,15 @@ document.querySelectorAll(".folder").forEach(folder => {
     }, 600);
   }, { passive: true });
 
+  let endX = 0;
+
   folder.addEventListener("touchmove", e => {
-    if (!holdTimer) return;
     const t = e.touches[0];
-    if (Math.abs(t.clientX - startX) > SCROLL_THRESHOLD ||
-        Math.abs(t.clientY - startY) > SCROLL_THRESHOLD) {
+    endX = t.clientX;
+    if (!holdTimer) return;
+    const dx = Math.abs(t.clientX - startX);
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > SCROLL_THRESHOLD || dy > SCROLL_THRESHOLD) {
       clearTimeout(holdTimer);
       holdTimer = null;
     }
@@ -216,6 +237,8 @@ document.querySelectorAll(".folder").forEach(folder => {
       didHold = false;
       return; // hold already handled, don't open folder
     }
+
+    if (Math.abs(endX - startX) > 10) return;
 
     if (folderSelecting) {
       toggleFolder(folder, id);
@@ -458,18 +481,45 @@ function moveToFolder(folderId){
 }
 
 /* ================= CREATE FOLDER ================= */
-function createFolder(){
-  let name = prompt("Folder name");
-  if(!name) return;
+let folderModalCallback = null;
 
-  fetch("create_folder.php",{
-    method:"POST",
-    body:new URLSearchParams({folder_name:name})
-  })
-  .then(res=>res.text())
-  .then(data=>{
-    console.log("create folder:", data);
-    location.reload();
+function openFolderModal(title, defaultVal, callback) {
+  document.getElementById("folderModalTitle").textContent = title;
+  const input = document.getElementById("folderNameInput");
+  input.value = defaultVal || "";
+  folderModalCallback = callback;
+  document.getElementById("folderNameModal").classList.add("active");
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeFolderModal() {
+  document.getElementById("folderNameModal").classList.remove("active");
+  document.getElementById("folderNameInput").value = "";
+  folderModalCallback = null;
+}
+
+function confirmFolderModal() {
+  const val = document.getElementById("folderNameInput").value.trim();
+  if (!val) return;
+  const cb = folderModalCallback;
+  folderModalCallback = null;
+  closeFolderModal();
+  if (cb) cb(val);
+}
+
+document.getElementById("folderNameInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") confirmFolderModal();
+  if (e.key === "Escape") closeFolderModal();
+});
+
+function createFolder(){
+  openFolderModal("Folder name", "", name => {
+    fetch("create_folder.php",{
+      method:"POST",
+      body:new URLSearchParams({folder_name:name})
+    })
+    .then(res=>res.text())
+    .then(() => location.reload());
   });
 }
 
@@ -526,24 +576,14 @@ function editNote(id, card){
 /* ================= RENAME FOLDER ================= */
 function renameFolder(id, e){
   e.stopPropagation();
-
-  let newName = prompt("New folder name:");
-  if(!newName) return;
-
-  fetch("rename_folder.php",{
-    method:"POST",
-    headers:{
-      "Content-Type":"application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      folder_id: id,
-      folder_name: newName
+  openFolderModal("Rename folder", "", newName => {
+    fetch("rename_folder.php",{
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({ folder_id: id, folder_name: newName })
     })
-  })
-  .then(res=>res.text())
-  .then(data=>{
-    console.log("rename:", data);
-    location.reload();
+    .then(res=>res.text())
+    .then(() => location.reload());
   });
 }
 

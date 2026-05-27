@@ -95,25 +95,26 @@ function getImage($profile_image) {
     }
     
     /* Profile images */
-    .lb-avatar {
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 3px solid white;
-      background: #e9e9e9;
-    }
+ .lb-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: transparent;  
+}
     
-    .podium-slot.first .lb-avatar {
-      width: 90px;
-      height: 90px;
-    }
-    
-    .podium-slot.second .lb-avatar,
-    .podium-slot.third .lb-avatar {
-      width: 65px;
-      height: 65px;
-    }
+.podium-slot.first .lb-avatar {
+  width: 90px;
+  height: 90px;
+  background: transparent;  
+}
+
+.podium-slot.second .lb-avatar,
+.podium-slot.third .lb-avatar {
+  width: 65px;
+  height: 65px;
+  background: transparent;  
+}
     
     /* Trophy */
     .trophy-img {
@@ -167,7 +168,7 @@ function getImage($profile_image) {
   <nav class="nav">
     <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
     <span style="margin: 0 auto; color: white; font-family: 'Itim', cursive; font-size: 24px;">Leaderboard</span>
-    <img src="bell.png" class="bell" onclick="window.location.href='notifications.php'">
+    <img src="bell.png" class="bell" onclick="notif()">
   </nav>
 
   <!-- SIDEBAR -->
@@ -209,7 +210,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 

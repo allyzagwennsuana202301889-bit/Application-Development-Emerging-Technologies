@@ -215,7 +215,7 @@ list($insight_text, $focus_subject) = generateInsight($subject_data, $average, $
   <!-- NAV -->
   <nav class="nav">
     <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-    <img src="bell.png" class="bell" onclick="window.location.href='notifications.php'">
+    <img src="bell.png" class="bell" onclick="notif()">
   </nav>
 
   <!-- SIDEBAR -->
@@ -258,7 +258,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 

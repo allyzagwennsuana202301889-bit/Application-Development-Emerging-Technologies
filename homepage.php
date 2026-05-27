@@ -219,7 +219,7 @@ if (strpos($image_src, 'data:') === 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -378,10 +378,46 @@ echo "</div>";
   </div>
 </div>
 
+<!-- REMOVE SUBJECT CONFIRM MODAL -->
+<div class="folder-modal-overlay" id="removeSubjectModal">
+  <div class="folder-modal-box">
+    <h3>Remove subject?</h3>
+    <p style="text-align:center; color:#666; font-size:14px; margin-top:-6px;">This will remove it from your list.</p>
+    <div class="folder-modal-btns">
+      <button class="folder-modal-cancel" onclick="closeRemoveModal()">Cancel</button>
+      <button class="folder-modal-confirm" style="background:#e74c3c;" onclick="confirmRemoveSubject()">Remove</button>
+    </div>
+  </div>
+</div>
+
 <script src="script.js"></script>
 
 
 <script>
+function refreshProgress() {
+  fetch('api_progress.php')
+    .then(r => r.json())
+    .then(data => {
+      data.forEach(item => {
+        const el = document.getElementById(
+          'prog-' + item.source_type + '-' + item.subject_id
+        );
+        if (el) el.textContent = item.percent + '%';
+      });
+    })
+    .catch(() => {}); // silently fail if offline
+}
+
+// Poll every 10 seconds while the page is visible
+setInterval(() => {
+  if (!document.hidden) refreshProgress();
+}, 10000);
+
+// Also refresh immediately when the user comes back to this tab
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshProgress();
+});
+
 /* ================= OFFLINE DOWNLOAD SIMULATION ================= */
 function toggleDownload(icon) {
   const img = icon.querySelector('img');

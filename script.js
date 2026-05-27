@@ -157,19 +157,7 @@ function noting() {
   window.location.href = "writenotes.php"
 }
 
-function deleteNote(id){
-  if (!confirm("Delete this note and its quiz?")) return;
 
-  fetch("deletenote.php", {
-    method: "POST",
-    body: new URLSearchParams({ note_id: id })
-  })
-  .then(res => res.text())
-  .then(data => {
-    console.log("delete:", data);
-    location.reload();
-  });
-}
 
 function togglePublish(id, currentType) {
   const newType = currentType === "subject" ? "subject_draft" : "subject";
@@ -670,11 +658,31 @@ function uploadPFP() {
 
 
 //homepage subject removal
+let _removeSubjectId = null;
+let _removeSourceType = null;
+
 function removeSubject(subjectId, sourceType) {
-  if (!confirm("Remove this subject from your list?")) return;
+  _removeSubjectId = subjectId;
+  _removeSourceType = sourceType;
+  const modal = document.getElementById("removeSubjectModal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeRemoveModal() {
+  const modal = document.getElementById("removeSubjectModal");
+  if (modal) modal.classList.remove("active");
+}
+
+function confirmRemoveSubject() {
+  if (!_removeSubjectId) return;
+  const id = _removeSubjectId;
+  const type = _removeSourceType;
+  _removeSubjectId = null;
+  _removeSourceType = null;
+  closeRemoveModal();
   fetch("remove_subject.php", {
     method: "POST",
-    body: new URLSearchParams({ subject_id: subjectId, source_type: sourceType })
+    body: new URLSearchParams({ subject_id: id, source_type: type })
   })
   .then(res => res.text())
   .then(() => location.reload());

@@ -6,6 +6,22 @@ $student_id = $_SESSION['student_id'] ?? 0;
 if ($student_id === 0) return;
 
 /* ============================================================
+   FIX: Respect user's notification preference
+   ============================================================ */
+$notif_check = $conn->prepare("SELECT notifications_enabled FROM student WHERE student_id = ? LIMIT 1");
+$notif_check->bind_param("i", $student_id);
+$notif_check->execute();
+$notif_result = $notif_check->get_result()->fetch_assoc();
+
+// If notifications are disabled (0), clear existing missing notifs and exit
+if (isset($notif_result['notifications_enabled']) && (int)$notif_result['notifications_enabled'] === 0) {
+    $clear = $conn->prepare("DELETE FROM notification WHERE student_id = ? AND section = 'missing'");
+    $clear->bind_param("i", $student_id);
+    $clear->execute();
+    return; // Don't generate any missing notifications
+}
+
+/* ============================================================
    MISSING NOTIFICATIONS GENERATOR
    Runs checks and inserts 'missing' section notifications
    ============================================================ */
@@ -20,7 +36,8 @@ $oneWeekAgo = date('Y-m-d H:i:s', strtotime('-7 days'));
 $threeDaysAgo = date('Y-m-d H:i:s', strtotime('-3 days'));
 
 /* -----------------------------------------------------------
-   CHECK 1: Subjects with NO reading progress at all
+   CHECK 1: Subjects with NO reading progress (FIXED)
+   Only notifies if subject exists, has a name, and has content
    ----------------------------------------------------------- */
 $stmt = $conn->prepare("
     SELECT ss.student_id, ss.subject_id, ss.source_type,
@@ -32,6 +49,12 @@ $stmt = $conn->prepare("
     WHERE ss.student_id = ?
     AND ss.subject_id NOT IN (
         SELECT subject_id FROM reading_progress WHERE student_id = ?
+    )
+    /* FIX: Only include subjects that actually exist and have content */
+    AND (
+        (ss.source_type = 'subjects' AND s.subject_id IS NOT NULL AND s.subject_name IS NOT NULL AND s.subject_name != '' AND s.content IS NOT NULL AND s.content != '' AND s.content != '[]')
+        OR
+        (ss.source_type = 'notes' AND n.note_id IS NOT NULL AND n.title IS NOT NULL AND n.title != '' AND n.content IS NOT NULL AND n.content != '' AND n.content != '[]')
     )
 ");
 $stmt->bind_param("ii", $student_id, $student_id);

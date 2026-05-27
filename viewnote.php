@@ -123,7 +123,7 @@ if (!empty($note['content'])) {
     .remove-card-img-btn {
       position: absolute;
       top: -6px;
-      right: -6px;
+      left: -6px;
       width: 22px;
       height: 22px;
       background: #ff4444;
@@ -151,6 +151,7 @@ if (!empty($note['content'])) {
     }
     .remove-subject-img-btn {
       top: -8px;
+      left: auto;
       right: -8px;
       width: 24px;
       height: 24px;
@@ -331,7 +332,7 @@ if (strpos($image_src, 'data:') !== 0) {
     <a href="notes.php">Notes</a>
     <a href="analytics.php">Analytics</a>
     <a href="leaderboard.php">Leaderboard</a>
-    <a href="settings.php">Settings</a>
+    <a href="settings.php" onclick="sessionStorage.setItem('settingsFrom', window.location.pathname)">Settings</a>
     <a href="logout.php">Log out</a>
   </div>
 
@@ -648,7 +649,7 @@ function addCard() {
       <button class="remove-card-img-btn" onclick="removeCardImage(this)" title="Remove image">×</button>
       <label class="card-image-label">
         <img src="file.png" class="card-image-preview" data-img="file.png">
-        <input type="file" class="card-image-input">
+        <input type="file" class="card-image-input" hidden>
       </label>
     </div>
     <input type="text" class="card-title" placeholder="Title">

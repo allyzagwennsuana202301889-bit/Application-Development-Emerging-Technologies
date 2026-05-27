@@ -53,6 +53,11 @@ while ($row = $result->fetch_assoc()) {
   $displayTitle = $dbTitle;
   $displayDesc = '';
   
+  /* ============================================================
+     FIX: Decode HTML entities like &nbsp; BEFORE processing
+     ============================================================ */
+  $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  
   // Try to parse JSON content
   $parsed = json_decode($desc, true);
   
@@ -86,6 +91,12 @@ while ($row = $result->fetch_assoc()) {
   // Strip any remaining JSON artifacts
   $displayTitle = preg_replace('/^[\[\{].*?[\]\}]$/', '', $displayTitle);
   $displayDesc = preg_replace('/^[\[\{].*?[\]\}]$/', '', $displayDesc);
+  
+  /* ============================================================
+     FIX: Also decode entities in the title just in case
+     ============================================================ */
+  $displayTitle = html_entity_decode($displayTitle, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  $displayDesc = html_entity_decode($displayDesc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
   
   $displayTitle = htmlspecialchars($displayTitle);
   $displayDesc = htmlspecialchars($displayDesc);
