@@ -7,6 +7,7 @@ $title          = $_POST['title'] ?? '';
 $content        = $_POST['content'] ?? '';
 $text_alignment = $_POST['text_alignment'] ?? 'center';
 $note_id        = $_POST['note_id'] ?? null;
+$folder_id      = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
 
 if (!$student_id) {
     die("No session / not logged in");
@@ -40,14 +41,15 @@ if ($note_id) {
     $stmt = $conn->prepare("UPDATE notes SET title=?, content=?, text_alignment=? WHERE note_id=? AND student_id=?");
     $stmt->bind_param("sssii", $title, $content, $text_alignment, $note_id, $student_id);
 } else {
-    $stmt = $conn->prepare("INSERT INTO notes (student_id, title, content, text_alignment) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("isss", $student_id, $title, $content, $text_alignment);
+    $stmt = $conn->prepare("INSERT INTO notes (student_id, title, content, text_alignment, folder_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("isssi", $student_id, $title, $content, $text_alignment, $folder_id);
 }
 
 if (!$stmt->execute()) {
     die("SQL ERROR: " . $stmt->error);
 }
 
-header("Location: notes.php");
+$redirect = $folder_id ? "notes.php?folder_id=" . $folder_id : "notes.php";
+header("Location: " . $redirect);
 exit;
 ?>

@@ -487,17 +487,16 @@ function uploadPFP() {
     });
   }
 
-  function bindTriggers() {
-    const items = document.querySelectorAll('.bottom-file-section .item, .bottom-add-section .item');
-    items.forEach(function(item) {
-      const txt = (item.textContent || '').toLowerCase();
-      if (txt.includes('quick note') || txt.includes('quicknote') || txt.includes('add notes')) {
-        item.style.cursor = 'pointer';
-        item.addEventListener('click', openQN);
-      }
-    });
-  }
-
+ function bindTriggers() {
+  const items = document.querySelectorAll('.bottom-file-section .item, .bottom-add-section .item');
+  items.forEach(function(item) {
+    const txt = (item.textContent || '').toLowerCase();
+    if (txt.includes('quick note') || txt.includes('quicknote')) {  // removed 'add notes'
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', openQN);
+    }
+  });
+}
   function openQN(e) {
     if (e) e.stopPropagation();
     if (qnOpen) return;

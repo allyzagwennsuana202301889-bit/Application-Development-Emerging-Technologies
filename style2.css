@@ -53,8 +53,9 @@ body {
   flex-shrink: 0;
 }
 
-.back-btn {
-  font-size: 30px;
+.back-btn img {
+  height: 30px;
+  width: 30px;
   cursor: pointer;
   color: #000;
 }

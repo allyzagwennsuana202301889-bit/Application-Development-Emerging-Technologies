@@ -10,6 +10,9 @@ $stmt->execute();
 $result = $stmt->get_result();
 $note = $result->fetch_assoc();
 
+// folder_id: from URL (new note in folder) or from existing note's saved folder
+$folder_id = $_GET['folder_id'] ?? $note['folder_id'] ?? null;
+
 $savedAlign = $note['text_alignment'] ?? 'center';
 ?>
 
@@ -28,12 +31,13 @@ $savedAlign = $note['text_alignment'] ?? 'center';
 <form id="noteForm" method="POST" action="savingnote.php">
 
 <input type="hidden" name="note_id" value="<?= $note_id ?>">
+<input type="hidden" name="folder_id" value="<?= htmlspecialchars($folder_id ?? '') ?>">
 <input type="hidden" name="text_alignment" id="textAlignment" value="<?= htmlspecialchars($savedAlign) ?>">
 <input type="hidden" name="content" id="hiddenContent">
 
 <!-- TOP -->
 <div class="top-bar">
-  <button type="button" class="back-btn" onclick="window.location.href='notes.php'" style="background:none;border:none;font-size:30px;cursor:pointer;color:#000;">←</button>
+  <button type="button" class="back-btn" onclick="window.location.href='notes.php<?= $folder_id ? '?folder_id=' . intval($folder_id) : '' ?>'"><img src ="back.png"></button>
   <input type="text" name="title" class="title-input" value="<?= htmlspecialchars($note['title'] ?? '') ?>" placeholder="(Insert title here)">
 </div>
 

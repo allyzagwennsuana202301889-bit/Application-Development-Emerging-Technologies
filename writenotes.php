@@ -26,7 +26,7 @@ $student_id = $_SESSION['student_id'] ?? 0;
 
 <!-- TOP -->
 <div class="top-bar">
-  <button type="button" class="back-btn" onclick="saveAndGoBack()" style="background:none;border:none;font-size:30px;cursor:pointer;color:#000;">←</button>
+  <button type="button" class="back-btn" onclick="saveAndGoBack()"><img src="back.png"></button>
   <input type="text" name="title" class="title-input" placeholder="(Insert title here)">
 </div>
 
@@ -84,11 +84,13 @@ $student_id = $_SESSION['student_id'] ?? 0;
 <!-- BOTTOM -->
 <div class="bottom-bar">
   <button type="button" class="bottom-btn" onclick="window.location.href='addsubject.php'">
-    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    <img src="addnote.png">
     <p>Add Subject</p>
   </button>
-  <button type="button" class="bottom-btn" onclick="document.getElementById('imageInput').click()" title="Add Image">
-    <svg viewBox="0 0 24 24" width="28" height="28"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+  <button type="button" class="bottom-btn" onclick="document.getElementById('imageInput').click()">
+    <svg viewBox="0 -2 24 24" style="width:40px;height:40px;fill:#333;display:block;margin:3 auto;">
+      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+    </svg>
     <p>Add Image</p>
   </button>
 </div>

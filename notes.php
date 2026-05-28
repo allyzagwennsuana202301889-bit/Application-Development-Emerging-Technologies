@@ -87,7 +87,7 @@ $folders_result = $conn->query($sql_folders);
     <?php while($f = $folders_result->fetch_assoc()){ ?>
     <div class="folder" data-id="<?= $f['folder_id'] ?>">
       <img src="folder.png">
-      <p class="folder-name" onclick="renameFolder(<?= $f['folder_id'] ?>, event)">
+      <p class="folder-name">
         <?= $f['folder_name'] ?>
       </p>
     </div>
@@ -96,6 +96,11 @@ $folders_result = $conn->query($sql_folders);
 
   <!-- NOTES SCROLL AREA -->
   <div class="drafts-container">
+
+<?php if ($folder_id): ?>
+  <div style="padding: 8px 12px 0; font-size: 0.78rem; color: #888; font-style: italic;">
+  </div>
+<?php endif; ?>
 
 <?php while($n = $notes_result->fetch_assoc()){ 
   $title = !empty($n['title']) ? $n['title'] : 'Untitled';
@@ -132,19 +137,14 @@ $plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'U
   <!-- BOTTOM -->
   <div class="bottom-add-section" id="bottomBar">
 
-    <div class="item">
-      <button onclick="addnote()"><img src="addnote.png"></button>
-      <p>Add Subject</p>
+  <div class="item">
+      <button onclick="noting()"><img src="addingnote.png"></button>
+      <p>Add Notes</p>
     </div>
 
     <div class="item">
       <button onclick="upload()"><img src="uploaded.png"></button>
       <p>Uploads</p>
-    </div>
-
-    <div class="item">
-      <button onclick="noting()"><img src="notes.png"></button>
-      <p>Add Notes</p>
     </div>
 
   </div>
@@ -184,7 +184,9 @@ $plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'U
 
 <script>
 
-  function exitfolder() {
+const CURRENT_FOLDER_ID = <?= json_encode($folder_id) ?>;
+
+function exitfolder() {
   window.location.href = "notes.php";
 }
 
@@ -193,6 +195,7 @@ let selectedFolders = new Set();
 let folderSelecting = false;
 let selectedNotes = new Set();
 let noteSelecting = false;
+let activeFolderId = null; // track which folder was held
 
 /* ================= FOLDER INTERACTIONS ================= */
 document.querySelectorAll(".folder").forEach(folder => {
@@ -203,6 +206,7 @@ document.querySelectorAll(".folder").forEach(folder => {
   let didHold = false;
   let startX = 0;
   let startY = 0;
+  let endX = 0;
   const SCROLL_THRESHOLD = 8;
 
   /* ---- TOUCH (mobile) ---- */
@@ -211,13 +215,12 @@ document.querySelectorAll(".folder").forEach(folder => {
     const t = e.touches[0];
     startX = t.clientX;
     startY = t.clientY;
+    endX = t.clientX;
     holdTimer = setTimeout(() => {
       didHold = true;
-      enterSelectionMode(folder, id);
+      showFolderActionBar(folder, id);
     }, 600);
   }, { passive: true });
-
-  let endX = 0;
 
   folder.addEventListener("touchmove", e => {
     const t = e.touches[0];
@@ -234,19 +237,8 @@ document.querySelectorAll(".folder").forEach(folder => {
   folder.addEventListener("touchend", e => {
     clearTimeout(holdTimer);
     holdTimer = null;
-
-    if (didHold) {
-      didHold = false;
-      return; // hold already handled, don't open folder
-    }
-
+    if (didHold) { didHold = false; return; }
     if (Math.abs(endX - startX) > 10) return;
-
-    if (folderSelecting) {
-      toggleFolder(folder, id);
-      return;
-    }
-
     openFolder(id);
   });
 
@@ -255,101 +247,97 @@ document.querySelectorAll(".folder").forEach(folder => {
     didHold = false;
     holdTimer = setTimeout(() => {
       didHold = true;
-      enterSelectionMode(folder, id);
+      showFolderActionBar(folder, id);
     }, 600);
   });
 
-  folder.addEventListener("mouseup", () => {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-  });
-
-  folder.addEventListener("mouseleave", () => {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-  });
+  folder.addEventListener("mouseup", () => { clearTimeout(holdTimer); holdTimer = null; });
+  folder.addEventListener("mouseleave", () => { clearTimeout(holdTimer); holdTimer = null; });
 
   folder.addEventListener("click", e => {
     if (didHold) { didHold = false; return; }
-    if (folderSelecting) { toggleFolder(folder, id); return; }
     openFolder(id);
   });
 });
 
-function enterSelectionMode(folder, id) {
-  // Add show-delete to THIS folder (don't remove from others already selected)
-  folder.classList.add("show-delete");
-  // Only switch bar once when first entering selection mode
-  if (!folderSelecting) {
-    folderSelecting = true;
-    switchFolderBar();
-  }
-  toggleFolder(folder, id);
-}
-
-function toggleFolder(folder, id){
-  if(selectedFolders.has(id)){
-    selectedFolders.delete(id);
-    folder.classList.remove("selected");
-    folder.classList.remove("show-delete");
-  } else {
-    selectedFolders.add(id);
-    folder.classList.add("selected");
-    folder.classList.add("show-delete");
-  }
-  if(selectedFolders.size === 0){
-    cancelFolderSelection();
-  }
-}
-
-function switchFolderBar(){
+/* Show Delete / Rename / Cancel in the bottom bar for a specific folder */
+function showFolderActionBar(folder, id) {
+  activeFolderId = id;
+  folder.classList.add("selected");
   document.getElementById("bottomBar").innerHTML = `
     <div class="item">
-      <button onclick="deleteSelectedFolders()"><img src="bin.png"></button>
+      <button onclick="deleteActiveFolder()"><img src="bin.png"></button>
       <p>Delete</p>
     </div>
     <div class="item">
-      <button onclick="cancelFolderSelection()"><img src="back.png"></button>
+      <button onclick="renameActiveFolder()"><img src="Edit.png"></button>
+      <p>Rename</p>
+    </div>
+    <div class="item">
+      <button onclick="cancelFolderAction()"><img src="back.png"></button>
       <p>Cancel</p>
     </div>
   `;
 }
 
-function cancelFolderSelection(){
-  selectedFolders.clear();
-  folderSelecting = false;
-  document.querySelectorAll(".folder")
-    .forEach(f => { f.classList.remove("selected"); f.classList.remove("show-delete"); });
+function cancelFolderAction() {
+  if (activeFolderId) {
+    const el = document.querySelector(`.folder[data-id="${activeFolderId}"]`);
+    if (el) el.classList.remove("selected");
+  }
+  activeFolderId = null;
   restoreBottomBar();
 }
 
-function restoreBottomBar(){
-  document.getElementById("bottomBar").innerHTML = `
-    <div class="item">
-      <button onclick="addnote()"><img src="addnote.png"></button>
-      <p>Add Subject</p>
-    </div>
-    <div class="item">
-      <button onclick="upload()"><img src="uploaded.png"></button>
-      <p>Uploads</p>
-    </div>
-    <div class="item">
-      <button onclick="noting()"><img src="notes.png"></button>
-      <p>Add Notes</p>
-    </div>
-  `;
-}
-
-function deleteSelectedFolders(){
-  if(selectedFolders.size === 0) return;
-
+function deleteActiveFolder() {
+  if (!activeFolderId) return;
   fetch("delete_multiple_folders.php", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ ids: JSON.stringify([...selectedFolders]) })
+    body: new URLSearchParams({ ids: JSON.stringify([activeFolderId]) })
   })
   .then(res => res.text())
   .then(() => location.reload());
+}
+
+function renameActiveFolder() {
+  if (!activeFolderId) return;
+  const id = activeFolderId;
+  openFolderModal("Rename folder", "", newName => {
+    fetch("rename_folder.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ folder_id: id, folder_name: newName })
+    })
+    .then(res => res.text())
+    .then(() => location.reload());
+  });
+}
+
+function restoreBottomBar(){
+  if (CURRENT_FOLDER_ID) {
+    document.getElementById("bottomBar").innerHTML = `
+      <div class="item">
+        <button onclick="noting()"><img src="addingnote.png"></button>
+        <p>Add Notes</p>
+      </div>
+      <div class="item">
+        <button onclick="upload()"><img src="uploaded.png"></button>
+        <p>Uploads</p>
+      </div>
+    `;
+  } else {
+    document.getElementById("bottomBar").innerHTML = `
+      <div class="item">
+        <button onclick="noting()"><img src="addingnote.png"></button>
+        <p>Add Notes</p>
+      </div>
+      <div class="item">
+        <button onclick="upload()"><img src="uploaded.png"></button>
+        <p>Uploads</p>
+      </div>
+    `;
+  }
 }
 
 /* ================= NOTES ================= */
@@ -575,7 +563,18 @@ function editNote(id, card){
   });
 }
 
-/* ================= RENAME FOLDER ================= */
+/* ================= NOTING OVERRIDE ================= */
+// Defined here AND re-applied after script.js to ensure folder_id is always passed
+function _notingWithFolder() {
+  if (CURRENT_FOLDER_ID) {
+    window.location.href = "edit_note.php?folder_id=" + CURRENT_FOLDER_ID;
+  } else {
+    window.location.href = "edit_note.php";
+  }
+}
+window.noting = _notingWithFolder;
+
+
 function renameFolder(id, e){
   e.stopPropagation();
   openFolderModal("Rename folder", "", newName => {
@@ -591,5 +590,9 @@ function renameFolder(id, e){
 
 </script>
 <script src="script.js"></script>
+<script>
+  // Re-apply after script.js in case it redefined noting()
+  window.noting = _notingWithFolder;
+</script>
 </body>
 </html>
