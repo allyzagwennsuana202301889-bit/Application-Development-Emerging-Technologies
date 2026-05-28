@@ -97,11 +97,6 @@ $folders_result = $conn->query($sql_folders);
   <!-- NOTES SCROLL AREA -->
   <div class="drafts-container">
 
-<?php if ($folder_id): ?>
-  <div style="padding: 8px 12px 0; font-size: 0.78rem; color: #888; font-style: italic;">
-  </div>
-<?php endif; ?>
-
 <?php while($n = $notes_result->fetch_assoc()){ 
   $title = !empty($n['title']) ? $n['title'] : 'Untitled';
   $content = $n['content'] ?? '';
