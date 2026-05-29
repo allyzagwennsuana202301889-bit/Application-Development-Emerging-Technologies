@@ -106,6 +106,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         exit;
     }
 
+    if ($_POST['action'] === 'delete_all') {
+        $del = $conn->prepare("DELETE FROM quiz_questions WHERE quiz_id = ?");
+        $del->bind_param("i", $note_id);
+        if ($del->execute()) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => $conn->error]);
+        }
+        exit;
+    }
+
     if ($_POST['action'] === 'add_flashcard') {
         $question = $_POST['question'];
         $question_type = $_POST['question_type'];
@@ -769,20 +780,49 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* Search */
+        #searchInput::placeholder {
+            color: rgba(255,255,255,0.75);
+            text-align: center;
+        }
+        #searchInput:focus {
+            text-align: left;
+        }
+        #searchInput:focus::placeholder {
+            color: transparent;
+        }
     </style>
 </head>
 <body class="flashcards-read-page">
     <div class="container">
 
-        <nav class="nav">
+        <nav class="nav" style="position:relative; z-index:300;" id="mainNav">
             <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-            <div class="nav-right">    
-               <div class="bell-wrapper" onclick="notif()">
-    <img src="bell.png" class="bells">
-    <span class="notif-dot" id="bellDot"></span>
-</div> 
-                <img src="back.png" class="back-btn-icon" onclick="goBack()" alt="Back">
+
+            <div style="flex:1; padding:0 10px; position:relative;">
+                <div style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.18);border-radius:20px;padding:0px 16px;">
+                    <input type="text" id="searchInput" placeholder="Search questions..."
+                           oninput="filterQuestions()"
+                           onfocus="showSearchDropdown()"
+                           onblur="hideSearchDropdownDelayed()"
+                           autocomplete="off"
+                           style="background:none;border:none;outline:none;width:100%;color:#fff;font-size:15px;font-family:'Inria Sans',sans-serif;text-align:center;"
+                    >
+                </div>
+
+                <!-- Dropdown sits inside search wrapper, absolute below it -->
+                <div id="searchDropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:-10px;right:-10px;z-index:9999;border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
+                    <div id="searchDropdownInner" style="background:#1a1a2e;max-height:320px;overflow-y:auto;">
+                        <div id="searchResultsList" style="padding:4px 0;"></div>
+                        <div id="searchEmpty" style="display:none;padding:16px;text-align:center;color:rgba(255,255,255,0.5);font-size:13px;font-family:'Inria Sans',sans-serif;">
+                            No questions match.
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <img src="back.png" class="back-btn-icon" onclick="goBack()" style="flex-shrink:0;" alt="Back">
         </nav>
 
         <div class="nav-links" id="sidebar">
@@ -838,18 +878,28 @@ if (strpos($image_src, 'data:') === 0) {
 
         <div class="progress-dots" id="progressDots"></div>
 
-        <div class="bottom-file-section">
+        <div class="bottom-file-section" id="bottomBar">
+            <!-- DEFAULT VIEW: Edit + Uploads -->
             <div class="item" id="editItem" onclick="toggleEditMode()">
                 <img src="edit.png" alt="Edit" id="editIcon">
                 <p id="editLabel">Edit</p>
             </div>
-            <div class="item" onclick="addNewQuestion()">
+            <div class="item" id="uploadsItem" onclick="upload()">
+                <img src="uploaded.png" alt="Uploads">
+                <p>Uploads</p>
+            </div>
+            <!-- EDIT MODE VIEW: Save + Add + Delete All (hidden by default) -->
+            <div class="item hidden" id="saveItem" onclick="toggleEditMode()">
+                <img src="edit.png" alt="Save" id="saveIcon">
+                <p>Save</p>
+            </div>
+            <div class="item hidden" id="addItem" onclick="addNewQuestion()">
                 <img src="add.png" alt="Add">
                 <p>Add</p>
             </div>
-            <div class="item" onclick="upload()">
-                <img src="uploaded.png" alt="Back">
-                <p>Uploads</p>
+            <div class="item hidden" id="deleteAllItem" onclick="deleteAllCards()">
+                <img src="bin.png" alt="Delete All">
+                <p>Delete All</p>
             </div>
         </div>
 
@@ -1295,17 +1345,29 @@ if (strpos($image_src, 'data:') === 0) {
             });
         }
 
+        // ===== BAR HELPERS =====
+        function showDefaultBar() {
+            document.getElementById('editItem').classList.remove('hidden');
+            document.getElementById('uploadsItem').classList.remove('hidden');
+            document.getElementById('saveItem').classList.add('hidden');
+            document.getElementById('addItem').classList.add('hidden');
+            document.getElementById('deleteAllItem').classList.add('hidden');
+        }
+
+        function showEditBar() {
+            document.getElementById('editItem').classList.add('hidden');
+            document.getElementById('uploadsItem').classList.add('hidden');
+            document.getElementById('saveItem').classList.remove('hidden');
+            document.getElementById('addItem').classList.remove('hidden');
+            document.getElementById('deleteAllItem').classList.remove('hidden');
+        }
+
         // ===== EDIT MODE =====
         function toggleEditMode() {
-            const editItem = document.getElementById('editItem');
-            const editIcon = document.getElementById('editIcon');
-            const editLabel = document.getElementById('editLabel');
-
             if (!isEditMode) {
                 // ENTERING EDIT MODE
                 isEditMode = true;
-                editIcon.src = 'Edit.png';
-                editLabel.textContent = 'Save';
+                showEditBar();
 
                 const slides = document.querySelectorAll('.question-slide');
                 slides.forEach((slide) => {
@@ -1317,17 +1379,14 @@ if (strpos($image_src, 'data:') === 0) {
                     const ansField = slide.querySelector('[data-field="answer"]');
                     if (ansField) ansField.removeAttribute('readonly');
                 });
-                showToast('Edit mode ON - tap image to replace, tap choice to set correct');
+                showToast('Edit mode ON');
 
             } else {
                 // EXITING EDIT MODE (saving)
                 if (isAdding) {
-                    // Only submit new card if we're currently adding one
                     submitNewCard();
                     return;
                 }
-
-                // For existing cards, just save and exit
                 saveCurrentCard();
             }
         }
@@ -1345,8 +1404,7 @@ if (strpos($image_src, 'data:') === 0) {
             if (!slide) {
                 // No slide found — just exit edit mode
                 isEditMode = false;
-                document.getElementById('editIcon').src = 'edit.png';
-                document.getElementById('editLabel').textContent = 'Edit';
+                showDefaultBar();
                 showToast('Edit mode off');
                 renderSlides();
                 return;
@@ -1354,6 +1412,11 @@ if (strpos($image_src, 'data:') === 0) {
 
             const qId = slide.getAttribute('data-qid');
             const qText = slide.querySelector('[data-field="question"]')?.value?.trim() || '';
+
+            if (!qText) {
+                showToast('Question cannot be empty');
+                return;
+            }
             const choiceBtns = slide.querySelectorAll('.choice-btn');
             const ansField = slide.querySelector('[data-field="answer"]');
             const questionImage = getImageData(currentIndex);
@@ -1397,9 +1460,7 @@ if (strpos($image_src, 'data:') === 0) {
                     if (qType === 'choice') cards[currentIndex].choices = choices;
 
                     isEditMode = false;
-                    document.getElementById('editIcon').src = 'edit.png';
-                    document.getElementById('editLabel').textContent = 'Edit';
-
+                    showDefaultBar();
                     renderSlides();
                     showToast('Saved!');
                 } else {
@@ -1428,8 +1489,7 @@ if (strpos($image_src, 'data:') === 0) {
                 if (currentIndex >= cards.length) currentIndex = Math.max(0, cards.length - 1);
                 if (isEditMode) {
                     isEditMode = false;
-                    document.getElementById('editIcon').src = 'edit.png';
-                    document.getElementById('editLabel').textContent = 'Edit';
+                    showDefaultBar();
                 }
                 renderSlides();
                 showToast('Deleted!');
@@ -1450,10 +1510,12 @@ if (strpos($image_src, 'data:') === 0) {
                     cards.splice(index, 1);
                     if (currentIndex >= cards.length) currentIndex = Math.max(0, cards.length - 1);
 
+                    sessionStorage.removeItem('flashcardsData_' + NOTE_ID);
+                    sessionStorage.removeItem('flashcardsData_new');
+
                     if (isEditMode) {
                         isEditMode = false;
-                        document.getElementById('editIcon').src = 'edit.png';
-                        document.getElementById('editLabel').textContent = 'Edit';
+                        showDefaultBar();
                     }
 
                     renderSlides();
@@ -1467,6 +1529,102 @@ if (strpos($image_src, 'data:') === 0) {
                 console.error(err);
             });
         }
+
+        // ===== DELETE ALL =====
+        function deleteAllCards() {
+            if (!confirm('Delete ALL flashcards? This cannot be undone.')) return;
+
+            const formData = new FormData();
+            formData.append('action', 'delete_all');
+
+            fetch('readflashcards.php?note_id=' + NOTE_ID, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    cards = [];
+                    isEditMode = false;
+                    isAdding = false;
+                    // Clear sessionStorage so deleted cards don't come back on reload
+                    sessionStorage.removeItem('flashcardsData_' + NOTE_ID);
+                    sessionStorage.removeItem('flashcardsData_new');
+                    showDefaultBar();
+                    renderSlides();
+                    showToast('All flashcards deleted');
+                } else {
+                    showToast('Error: ' + (data.error || 'Failed to delete all'));
+                }
+            })
+            .catch(err => {
+                showToast('Error deleting all');
+                console.error(err);
+            });
+        }
+
+        /* ================= SEARCH ================= */
+        function filterQuestions() {
+            const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+            const list  = document.getElementById('searchResultsList');
+            const dropdown = document.getElementById('searchDropdown');
+            const emptyMsg = document.getElementById('searchEmpty');
+
+            if (!query) {
+                dropdown.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            const matches = [];
+            cards.forEach((c, i) => {
+                const text = (c.question || '').toLowerCase();
+                if (text.includes(query)) matches.push({ i, text: c.question });
+            });
+
+            if (matches.length === 0) {
+                list.innerHTML = '';
+                emptyMsg.style.display = 'block';
+            } else {
+                emptyMsg.style.display = 'none';
+                list.innerHTML = matches.map(m => `
+                    <div onclick="goTo(${m.i}); clearSearch();"
+                         style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;color:#fff;font-size:14px;font-family:'Inria Sans',sans-serif;transition:background 0.15s;"
+                         onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                         onmouseout="this.style.background='transparent'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" style="flex-shrink:0;">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.text)}</span>
+                        <span style="margin-left:auto;opacity:0.5;font-size:11px;flex-shrink:0;">Q${m.i + 1}</span>
+                    </div>`).join('');
+            }
+            dropdown.style.display = 'block';
+        }
+
+        function showSearchDropdown() {
+            const query = (document.getElementById('searchInput').value || '').trim();
+            if (query) document.getElementById('searchDropdown').style.display = 'block';
+        }
+
+        function hideSearchDropdownDelayed() {
+            setTimeout(() => {
+                document.getElementById('searchDropdown').style.display = 'none';
+            }, 200);
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchDropdown').style.display = 'none';
+            document.getElementById('searchResultsList').innerHTML = '';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('searchInput').addEventListener('keydown', e => {
+                if (e.key === 'Escape') clearSearch();
+            });
+        });
 
         // SWIPE
         const wrapper = document.getElementById('cardDeckWrapper');
@@ -1503,6 +1661,19 @@ if (strpos($image_src, 'data:') === 0) {
         });
 
         window.addEventListener('DOMContentLoaded', () => {
+            // If no DB cards, check sessionStorage as fallback
+            if (!cards || cards.length === 0) {
+                const flashKey = 'flashcardsData_' + NOTE_ID;
+                const flashRaw = sessionStorage.getItem(flashKey);
+                if (flashRaw) {
+                    try {
+                        const flashData = JSON.parse(flashRaw);
+                        if (flashData.cards && flashData.cards.length > 0) {
+                            cards = flashData.cards;
+                        }
+                    } catch(e) {}
+                }
+            }
             renderSlides();
         });
 

@@ -73,26 +73,34 @@ if (isset($_GET['note_id'])) {
       transform: translateX(-50%) translateY(0);
     }
 
-    .flashcards-badge {
-   position: fixed;
-  top: 50px;
-  left: 48%;
-  transform: translateX(-50%);
-  background: #87CEEB;
-  color: #1a1a2e;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-family: 'Inria Sans', sans-serif;
-  z-index: 50;
-  display: none;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    .flashcard-notif-badge {
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      min-width: 18px;
+      height: 18px;
+      background: #FF4444;
+      color: white;
+      border-radius: 9px;
+      font-size: 11px;
+      font-family: 'Inria Sans', sans-serif;
+      font-weight: bold;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid #3B8BFF;
+      z-index: 10;
+      line-height: 1;
     }
-    .flashcards-badge.show { display: flex; }
-    .flashcards-badge img {
-      width: 16px; height: 16px;
+    .flashcard-notif-badge.active {
+      display: flex;
+    }
+    .flashcards-nav-item {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .desc-img {
@@ -233,6 +241,40 @@ if (isset($_GET['note_id'])) {
       height: 100%;
       object-fit: contain;
     }
+    .nav-search-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.22);
+      border-radius: 20px;
+      padding: 8px 16px;
+      min-width: 0;
+    }
+    .nav-search-input {
+      background: none;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: 'Itim', cursive;
+      font-size: 15px;
+      width: 100%;
+      min-width: 0;
+      text-align: center;
+    }
+    .nav-search-input::placeholder {
+      color: rgba(255,255,255,0.85);
+      text-align: center;
+    }
+    .nav-search-input:focus {
+      text-align: left;
+    }
+    .nav-search-input:focus::placeholder {
+      color: transparent;
+    }
+    .subject-main-card.search-hidden {
+      display: none;
+    }
     .bell-wrapper {
       position: relative;
       display: flex;
@@ -267,17 +309,13 @@ if (isset($_GET['note_id'])) {
 <body>
 
 <div class="toast" id="toast"></div>
-<div class="flashcards-badge" id="flashcardsBadge">
-  <img src="flashcards.png"> <span id="flashcardsCount">0 flashcards</span>
-</div>
 
 <div class="container">
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-    <div class="bell-wrapper" onclick="notif()">
-      <img src="bell.png" class="bells">
-      <span class="notif-dot" id="bellDot"></span>
+    <div class="nav-search-wrap">
+      <input class="nav-search-input" id="cardSearchInput" type="text" placeholder="Search Topic" oninput="filterCards(this.value)">
     </div>
     <button class="back-btn" id="backBtn">
       <img src="back.png">
@@ -447,9 +485,10 @@ if (strpos($image_src, 'data:') === 0) {
       </button>
       <p>Uploads</p>
     </div>
-    <div class="item">
-      <button onclick="goToFlashcards()">
+    <div class="item flashcards-nav-item">
+      <button onclick="goToFlashcards()" style="position:relative;">
         <img src="flashcards.png">
+        <span class="flashcard-notif-badge" id="flashcardBadge"></span>
       </button>
       <p>Flash Cards</p>
     </div>
@@ -946,10 +985,11 @@ function checkForFlashcardsData() {
     try {
       const flashData = JSON.parse(flashDataRaw);
       if (flashData.cards && flashData.cards.length > 0) {
-        const badge = document.getElementById('flashcardsBadge');
-        const count = document.getElementById('flashcardsCount');
-        count.textContent = `${flashData.cards.length} flashcard${flashData.cards.length !== 1 ? 's' : ''} ready`;
-        badge.classList.add('show');
+        const badge = document.getElementById('flashcardBadge');
+        if (badge) {
+          badge.textContent = flashData.cards.length;
+          badge.classList.add('active');
+        }
       }
     } catch (e) {
       console.error('Error parsing flashcards data:', e);
@@ -1304,6 +1344,20 @@ function removeCardImage(btn) {
   }
   if (input) input.value = "";
   persistToSession();
+}
+
+function filterCards(query) {
+  const cards = document.querySelectorAll('.subject-main-card');
+  const q = query.trim().toLowerCase();
+  cards.forEach(card => {
+    const titleEl = card.querySelector('.card-title');
+    const title = (titleEl ? titleEl.value : '').toLowerCase();
+    if (!q || title.includes(q)) {
+      card.classList.remove('search-hidden');
+    } else {
+      card.classList.add('search-hidden');
+    }
+  });
 }
 
 function goToQuizzes() {

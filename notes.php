@@ -37,9 +37,11 @@ $folders_result = $conn->query($sql_folders);
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
-   <div class="bell-wrapper" onclick="notif()">
-    <img src="bell.png" class="bell">
-    <span class="notif-dot" id="bellDot"></span>
+    <input type="text" id="searchInput" placeholder="Search notes">
+    <div class="bell-wrapper" onclick="notif()">
+      <img src="bell.png" class="bell">
+      <span class="notif-dot" id="bellDot"></span>
+    </div>
   </nav>
 
   <div class="nav-links">
@@ -121,7 +123,7 @@ $plainText = html_entity_decode(strip_tags($content), ENT_QUOTES | ENT_HTML5, 'U
   $previewLines = array_slice($lines, 0, 4);
   $preview = implode("\n", $previewLines);
 ?>
-<div class="notesv2-card" data-id="<?= $n['note_id'] ?>">
+<div class="notesv2-card" data-id="<?= $n['note_id'] ?>" data-title="<?= htmlspecialchars(strtolower($title)) ?>">
   <div class="note-card-title"><?= htmlspecialchars($title) ?></div>
   <div class="note-card-content"><?= nl2br(htmlspecialchars($preview)) ?></div>
 </div>
@@ -569,6 +571,44 @@ function _notingWithFolder() {
 }
 window.noting = _notingWithFolder;
 
+
+/* ================= SEARCH BY NOTE TITLE ================= */
+function filterNotes() {
+  const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+
+  document.querySelectorAll('.notesv2-card').forEach(card => {
+    const cardTitle = (card.dataset.title || '').toLowerCase();
+    const matches = !query || cardTitle.includes(query);
+    card.style.display = matches ? '' : 'none';
+  });
+
+  /* empty-state message */
+  const anyVisible = [...document.querySelectorAll('.notesv2-card')]
+    .some(c => c.style.display !== 'none');
+  let emptyMsg = document.getElementById('searchEmptyMsg');
+  if (!anyVisible && query) {
+    if (!emptyMsg) {
+      emptyMsg = document.createElement('p');
+      emptyMsg.id = 'searchEmptyMsg';
+      emptyMsg.style.cssText = 'padding:15px;color:#888;font-size:14px;text-align:center;';
+      document.querySelector('.drafts-container').appendChild(emptyMsg);
+    }
+    emptyMsg.textContent = 'No notes match "' + query + '".';
+    emptyMsg.style.display = '';
+  } else if (emptyMsg) {
+    emptyMsg.style.display = 'none';
+  }
+}
+
+document.getElementById('searchInput').addEventListener('input', filterNotes);
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    e.target.value = '';
+    filterNotes();
+    e.target.blur();
+  }
+});
 
 function renameFolder(id, e){
   e.stopPropagation();

@@ -75,6 +75,7 @@ while ($r = $sf_result->fetch_assoc()) $subject_folders[] = $r;
 
   <nav class="nav">
     <span class="hamburger">&#9776;</span>
+    <input type="text" id="searchInput" placeholder="Search subject">
     <div class="bell-wrapper" onclick="notif()">
       <img src="bell.png" class="bell">
       <span class="notif-dot" id="bellDot"></span>
@@ -170,6 +171,7 @@ while ($r = $sf_result->fetch_assoc()) $subject_folders[] = $r;
      data-noteid='" . $draft['note_id'] . "'
      data-sfid='" . ($sfid ?? '') . "'
      data-type='" . htmlspecialchars($draft['type']) . "'
+     data-title='" . htmlspecialchars(strtolower($title)) . "'
      onmousedown='startCardHold(event, this)'
      onmouseup='clearCardHold()'
      onmouseleave='clearCardHold()'
@@ -279,14 +281,42 @@ function closeSubjectFolder() {
 }
 
 function filterCards() {
+  const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+
   document.querySelectorAll('.draft-card').forEach(card => {
-    const cardSFId = card.dataset.sfid ? parseInt(card.dataset.sfid) : null;
+    const cardSFId  = card.dataset.sfid ? parseInt(card.dataset.sfid) : null;
+    const cardTitle = (card.dataset.title || '').toLowerCase();
+
+    /* ── folder filter ── */
+    let folderMatch;
     if (activeSFId === null) {
-      card.style.display = (!cardSFId || isNaN(cardSFId)) ? '' : 'none';
+      folderMatch = !cardSFId || isNaN(cardSFId);
     } else {
-      card.style.display = cardSFId === activeSFId ? '' : 'none';
+      folderMatch = cardSFId === activeSFId;
     }
+
+    /* ── search filter ── */
+    const searchMatch = !query || cardTitle.includes(query);
+
+    card.style.display = (folderMatch && searchMatch) ? '' : 'none';
   });
+
+  /* show/hide empty-state message */
+  const anyVisible = [...document.querySelectorAll('.draft-card')]
+    .some(c => c.style.display !== 'none');
+  let emptyMsg = document.getElementById('searchEmptyMsg');
+  if (!anyVisible && query) {
+    if (!emptyMsg) {
+      emptyMsg = document.createElement('p');
+      emptyMsg.id = 'searchEmptyMsg';
+      emptyMsg.style.cssText = 'padding:15px;color:#888;font-size:14px;text-align:center;';
+      document.getElementById('draftsContainer').appendChild(emptyMsg);
+    }
+    emptyMsg.textContent = 'No subjects match "' + query + '".';
+    emptyMsg.style.display = '';
+  } else if (emptyMsg) {
+    emptyMsg.style.display = 'none';
+  }
 }
 
 filterCards();
@@ -599,6 +629,19 @@ function confirmFolderModal() {
   closeFolderModal();
   if (cb) cb(val);
 }
+
+/* ══════════════════════════════════════
+   SEARCH INPUT — filter by subject title
+══════════════════════════════════════ */
+document.getElementById('searchInput').addEventListener('input', filterCards);
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    e.target.value = '';
+    filterCards();
+    e.target.blur();
+  }
+});
 
 document.getElementById('folderNameInput').addEventListener('keydown', e => {
   if (e.key === 'Enter')  confirmFolderModal();

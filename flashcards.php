@@ -291,18 +291,50 @@ $useremail = isset($_SESSION['email']) ? htmlspecialchars($_SESSION['email']) : 
         .flashcards-page .answer-field::placeholder {
             color: #555;
         }
+
+        /* Search input placeholder */
+        #searchInput::placeholder {
+            color: rgba(255,255,255,0.75);
+            text-align: center;
+        }
+        #searchInput:focus {
+            text-align: left;
+        }
+        #searchInput:focus::placeholder {
+            color: transparent;
+        }
     </style>
 </head>
 <body class="flashcards-page">
     <div class="container">
 
-        <nav class="nav">
+        <nav class="nav" style="position:relative; z-index:300;" id="mainNav">
             <span class="hamburger" onclick="toggleSidebar()">&#9776;</span>
-           <div class="bell-wrapper" onclick="notif()">
-    <img src="bell.png" class="bell">
-    <span class="notif-dot" id="bellDot"></span>
-</div> 
 
+            <!-- Search input -->
+            <div style="flex:1; padding:0 10px; position:relative;">
+                <div style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.18);border-radius:20px;padding:0px 16px;">
+                    <input type="text" id="searchInput" placeholder="Search questions..."
+                           oninput="filterQuestions()"
+                           onfocus="showSearchDropdown()"
+                           onblur="hideSearchDropdownDelayed()"
+                           autocomplete="off"
+                           style="background:none;border:none;outline:none;width:100%;color:#fff;font-size:15px;font-family:'Inria Sans',sans-serif;text-align:center;"
+                    >
+                </div>
+
+                <!-- Dropdown sits INSIDE the search wrapper, absolute below it -->
+                <div id="searchDropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:-10px;right:-10px;z-index:9999;border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
+                    <div id="searchDropdownInner" style="background:#1a1a2e;max-height:320px;overflow-y:auto;">
+                        <div id="searchResultsList" style="padding:4px 0;"></div>
+                        <div id="searchEmpty" style="display:none;padding:16px;text-align:center;color:rgba(255,255,255,0.5);font-size:13px;font-family:'Inria Sans',sans-serif;">
+                            No questions match.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <img src="back.png" onclick="goBack()" style="width:50px;height:50px;cursor:pointer;flex-shrink:0;" alt="Back">
         </nav>
         <div class="nav-links" id="sidebar">
             <div class="top-icons">
@@ -366,9 +398,9 @@ if (strpos($image_src, 'data:') === 0) {
                 <img src="uploaded.png" alt="Uploads">
                 <p>Uploads</p>
             </div>
-            <div class="item" onclick="goBack()">
-                <img src="back.png" alt="Back">
-                <p>Back</p>
+            <div class="item" onclick="deleteAllQuestions()" >
+                <img src="bin.png" alt="Delete All" style =" width:60px;">
+                <p>Delete All</p>
             </div>
         </div>
 
@@ -611,6 +643,15 @@ if (strpos($image_src, 'data:') === 0) {
             renderSlides();
             showToast('Question deleted');
 
+            // Update sessionStorage after delete — only keep real cards
+            const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+            const realCards = cards.filter(c => c.question && c.question.trim() && c.question_type);
+            if (realCards.length > 0) {
+                sessionStorage.setItem(flashKey, JSON.stringify({ subject: SUBJECT_TITLE, cards: realCards }));
+            } else {
+                sessionStorage.removeItem(flashKey);
+            }
+
             setTimeout(() => {
                 saveCurrent();
                 if (NOTE_ID) autoSaveToServer();
@@ -622,7 +663,7 @@ if (strpos($image_src, 'data:') === 0) {
             document.getElementById(`selectorState-${index}`).classList.add('hidden');
             document.getElementById(`choicesState-${index}`).classList.remove('hidden');
             morph.setAttribute('data-type', 'choice');
-            scheduleAutoSave();
+            saveCurrent();
         }
 
         function transitionToAnswer(index) {
@@ -630,7 +671,7 @@ if (strpos($image_src, 'data:') === 0) {
             document.getElementById(`selectorState-${index}`).classList.add('hidden');
             document.getElementById(`answerState-${index}`).classList.remove('hidden');
             morph.setAttribute('data-type', 'identification');
-            scheduleAutoSave();
+            saveCurrent();
         }
 
         function transitionBack(index) {
@@ -645,7 +686,7 @@ if (strpos($image_src, 'data:') === 0) {
                 cards[index].choices = [];
                 cards[index].correct_answer = '';
             }
-            scheduleAutoSave();
+            saveCurrent();
         }
 
         function addNewQuestion() {
@@ -654,6 +695,14 @@ if (strpos($image_src, 'data:') === 0) {
             currentIndex = cards.length - 1;
             renderSlides();
             showToast('Question ' + cards.length + ' added!');
+            // Save to sessionStorage — only persist real cards
+            const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+            const realCards = cards.filter(c => c.question && c.question.trim() && c.question_type);
+            if (realCards.length > 0) {
+                sessionStorage.setItem(flashKey, JSON.stringify({ subject: SUBJECT_TITLE, cards: realCards }));
+            } else {
+                sessionStorage.removeItem(flashKey);
+            }
         }
 
         function saveCurrent() {
@@ -685,13 +734,20 @@ if (strpos($image_src, 'data:') === 0) {
                 correct_answer: slide.querySelector(`#ansField-${currentIndex}`)?.value || '',
                 question_image: questionImage
             };
+
+            // Save to sessionStorage on every edit so reload doesn't lose unsaved work
+            const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+            sessionStorage.setItem(flashKey, JSON.stringify({
+                subject: SUBJECT_TITLE,
+                cards: cards
+            }));
         }
 
         function markCorrect(inp) {
             const state = inp.closest('.choices-state');
             state.querySelectorAll('.choice-field').forEach(c => c.classList.remove('correct'));
             inp.classList.add('correct');
-            scheduleAutoSave();
+            saveCurrent();
         }
 
         function pickImage(index) {
@@ -722,7 +778,7 @@ if (strpos($image_src, 'data:') === 0) {
                 img.style.display = 'block';
                 wrap.classList.add('show');
                 if (fileIconArea) fileIconArea.classList.add('hidden');
-                scheduleAutoSave();
+                saveCurrent();
             };
             reader.readAsDataURL(file);
         }
@@ -740,17 +796,19 @@ if (strpos($image_src, 'data:') === 0) {
             if (wrap) wrap.classList.remove('show');
             if (fileIconArea) fileIconArea.classList.remove('hidden');
             if (input) input.value = '';
-            scheduleAutoSave();
+            saveCurrent();
         }
 
         async function goBack() {
             saveCurrent();
 
             const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
-            sessionStorage.setItem(flashKey, JSON.stringify({
-                subject: SUBJECT_TITLE,
-                cards: cards
-            }));
+            const realCards = cards.filter(c => c.question && c.question.trim() && c.question_type);
+            if (realCards.length > 0) {
+                sessionStorage.setItem(flashKey, JSON.stringify({ subject: SUBJECT_TITLE, cards: realCards }));
+            } else {
+                sessionStorage.removeItem(flashKey);
+            }
 
             if (NOTE_ID && NOTE_ID > 0) {
                 try {
@@ -805,6 +863,83 @@ if (strpos($image_src, 'data:') === 0) {
             requestAnimationFrame(updateUI);
         });
 
+        /* ================= SEARCH QUESTIONS ================= */
+        function filterQuestions() {
+            const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+            const list  = document.getElementById('searchResultsList');
+            const dropdown = document.getElementById('searchDropdown');
+            const emptyMsg = document.getElementById('searchEmpty');
+
+            if (!query) {
+                dropdown.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            saveCurrent();
+            const matches = [];
+            cards.forEach((c, i) => {
+                const text = (c.question || '').toLowerCase();
+                if (text.includes(query)) matches.push({ i, text: c.question });
+            });
+
+            if (matches.length === 0) {
+                list.innerHTML = '';
+                emptyMsg.style.display = 'block';
+            } else {
+                emptyMsg.style.display = 'none';
+                list.innerHTML = matches.map(m => `
+                    <div onclick="goTo(${m.i}); clearSearch();"
+                         style="display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;color:#fff;font-size:14px;font-family:'Inria Sans',sans-serif;transition:background 0.15s;"
+                         onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                         onmouseout="this.style.background='transparent'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" style="flex-shrink:0;">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.text)}</span>
+                        <span style="margin-left:auto;opacity:0.5;font-size:11px;flex-shrink:0;">Q${m.i + 1}</span>
+                    </div>`).join('');
+            }
+            dropdown.style.display = 'block';
+        }
+
+        function showSearchDropdown() {
+            const query = (document.getElementById('searchInput').value || '').trim();
+            if (query) {
+                document.getElementById('searchDropdown').style.display = 'block';
+            }
+        }
+
+        function hideSearchDropdownDelayed() {
+            setTimeout(() => {
+                document.getElementById('searchDropdown').style.display = 'none';
+            }, 200);
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchDropdown').style.display = 'none';
+            document.getElementById('searchResultsList').innerHTML = '';
+        }
+
+        document.getElementById('searchInput').addEventListener('keydown', e => {
+            if (e.key === 'Escape') clearSearch();
+        });
+
+        /* ================= DELETE ALL QUESTIONS ================= */
+        function deleteAllQuestions() {
+            if (!confirm('Delete ALL questions? This cannot be undone.')) return;
+            cards = [{}];
+            currentIndex = 0;
+            renderSlides();
+            showToast('All questions deleted');
+            // Clear sessionStorage so deleted cards don't come back on reload
+            const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+            sessionStorage.removeItem(flashKey);
+            if (NOTE_ID) autoSaveToServer();
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             let sessionCards = null;
             const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
@@ -847,6 +982,17 @@ if (strpos($image_src, 'data:') === 0) {
         });
         const av = localStorage.getItem('userAvatar');
         if (av) document.getElementById('preview').src = av;
-    </script>
+    
+        // Save cards to sessionStorage before page unload/reload
+        window.addEventListener('beforeunload', () => {
+            const flashKey = 'flashcardsData_' + (NOTE_ID || 'new');
+            const realCards = cards.filter(c => c.question && c.question.trim() && c.question_type);
+            if (realCards.length > 0) {
+                sessionStorage.setItem(flashKey, JSON.stringify({ subject: SUBJECT_TITLE, cards: realCards }));
+            } else {
+                sessionStorage.removeItem(flashKey);
+            }
+        });
+</script>
 </body>
 </html>

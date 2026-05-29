@@ -175,8 +175,9 @@ function recalcSubjectProgress($conn, $student_id, $subject_id, $source_type) {
                 }
             }
         }
-        // Fallback: no snapshot or no specific edits detected — treat all previously-correct as potentially edited
-        if ($last_total > 0 && ($saved_hash === '' || $saved_hash !== $current_hash) && empty($edited_question_ids)) {
+        // Fallback: ONLY when there is truly no snapshot — treat all previously-correct as unverified.
+        // If we have a snapshot, trust its specific edit detection (even if nothing changed).
+        if ($last_total > 0 && $saved_snapshot === '' && $saved_hash !== $current_hash && empty($edited_question_ids)) {
             $edited_question_ids = $prev_correct_ids;
         }
 
